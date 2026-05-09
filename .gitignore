@@ -1,0 +1,42 @@
+# 환경변수 (API 키, DB 비밀번호)
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 가상환경
+venv/
+env/
+.venv/
+
+# 대용량 원본 데이터 (별도 공유)
+db/scripts/parsed/
+data/
+상담/
+*.pdf
+
+# 로그
+*.log
+
+# Claude Code 설정 (로컬 전용)
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 임시 스크립트
+backend/check_*.py
+backend/reset_*.py
+backend/db_status.py

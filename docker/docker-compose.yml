@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17   # pgvector 포함된 공식 이미지
+    container_name: kdca_db
+    
+    environment:
+      POSTGRES_USER:     kdca_admin
+      POSTGRES_PASSWORD: kdca_pwd1
+      POSTGRES_DB:       kdca_db
+    ports:
+      - "5555:5432"    # 호스트 5555 → 컨테이너 5432 (선행 연구와 동일 포트 전략)
+    volumes:
+      - kdca_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kdca_admin -d kdca_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  kdca_pgdata:
