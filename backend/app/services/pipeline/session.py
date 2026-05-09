@@ -1,9 +1,9 @@
 """
 통화 세션 메모리 저장소.
-call_id → CallSession (conversation_history, ai_guidance 캐시)
+call_id → CallSession (conversation_history, ai_guidance 캐시, LLMSession)
 """
 from dataclasses import dataclass, field
-from typing import Any
+from app.services.pipeline.llm_session import LLMSession
 
 
 @dataclass
@@ -12,6 +12,7 @@ class CallSession:
     agent_id: int
     conversation_history: list[dict] = field(default_factory=list)
     ai_guidance: dict | None = None
+    llm_session: LLMSession = field(default_factory=LLMSession)
 
 
 # 프로세스 메모리 기반 세션 저장소 {call_id: CallSession}

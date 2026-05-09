@@ -2,9 +2,15 @@
 WebSocket 라우터
 WS /ws/call/{call_id}?token={access_token}
 
-현재: 텍스트 수신 → conversation_history 누적 → 파이프라인 stub
-STT(voice.py)는 별도 단계에서 연결
+파이프라인:
+  발화 수신
+  → STEP 1 (llm_session): READY 판정 + 카테고리 분류
+  → STEP 2A (retrieval):  pgvector Hybrid 검색 (knowledge_chunks)
+    STEP 2B (step2):      acw_cards 유사사례 검색  ┐ 병렬
+    STEP 2C (step2):      transfer_agencies 검색   ┘
+  → STEP 3 (card_generator): 상담사 카드 생성
 """
+import asyncio
 import json
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
@@ -21,7 +27,6 @@ async def call_websocket(
     websocket: WebSocket,
     token: str = Query(...),
 ):
-    # JWT 검증
     try:
         agent_id = decode_token(token)
     except ValueError:
@@ -36,11 +41,9 @@ async def call_websocket(
         while True:
             data = await websocket.receive()
 
-            # binary frame: 오디오 (STT 연결 전 무시)
             if "bytes" in data:
                 continue
 
-            # text frame: {"speaker": "고객"|"상담사", "text": "..."}
             if "text" in data:
                 try:
                     msg = json.loads(data["text"])
@@ -56,7 +59,6 @@ async def call_websocket(
                 turn = {"speaker": speaker, "text": text, "timestamp": timestamp}
                 session.conversation_history.append(turn)
 
-                # conversation_update push
                 await websocket.send_text(json.dumps({
                     "type": "conversation_update",
                     "speaker": speaker,
@@ -64,101 +66,106 @@ async def call_websocket(
                     "timestamp": timestamp,
                 }, ensure_ascii=False))
 
-                # 고객 발화일 때만 파이프라인 트리거
-                if speaker == "고객":
-                    await _run_pipeline(call_id, session, websocket)
+                # 모든 발화를 LLMSession에 전달 (상담사 발화는 컨텍스트 누적만)
+                llm_result = await session.llm_session.on_utterance(text, speaker)
+                if llm_result:
+                    await _run_pipeline(call_id, session, websocket, llm_result)
 
     except WebSocketDisconnect:
         print(f"[WS] 종료: call_id={call_id}")
-        # 세션은 유지 (PATCH /end 호출 시 DB 저장)
 
 
-async def _run_pipeline(call_id: int, session, websocket: WebSocket):
-    """RTL 파이프라인 실행 (STEP1 → STEP2 병렬 → STEP3)"""
+async def _run_pipeline(call_id: int, session, websocket: WebSocket, llm_result: dict):
+    """STEP 2A/B/C 병렬 → STEP 3"""
+    from app.services.pipeline.retrieval import retrieve_knowledge
+    from app.services.pipeline.card_generator import generate_card
+    from app.services.pipeline.step2_search import _search_acw, _search_transfer, _embed
+    from app.core.database import get_pool
+
     await websocket.send_text(json.dumps({"type": "ai_update", "status": "loading"}))
 
     try:
-        from app.services.pipeline.step1_llm import run_step1
-        from app.services.pipeline.step2_search import run_step2
-        from app.services.pipeline.step3_llm import run_step3
+        category     = llm_result["category"]
+        refined_query = llm_result["refined_query"]
+        query_vec    = llm_result["_query_vec"]   # llm_session에서 이미 생성된 벡터
 
-        # STEP 1: ready 판정 + OOS 분류
-        step1 = await run_step1(session.conversation_history)
-
-        if not step1["ready"]:
-            return  # 발화 더 필요
-
-        if step1["is_oos"]:
-            session.ai_guidance = {
-                "is_oos": True,
-                "oos_type": step1.get("oos_type"),
-                "oos_reason": step1.get("oos_reason"),
-                "query": step1.get("query"),
-                "disease_name": step1.get("disease_name"),
-                "answer": None,
-                "sources": [],
-            }
+        # 범위외: 카드만 생성하고 종료
+        if category == "범위외":
+            card = await generate_card(refined_query, "범위외", {"results": [], "_disease_filter": None})
+            session.ai_guidance = _build_guidance(refined_query, card, [], [], is_oos=True)
             await websocket.send_text(json.dumps({
                 "type": "ai_update",
                 "status": "oos",
-                "oos_type": step1.get("oos_type"),
-                "oos_reason": step1.get("oos_reason"),
+                "oos_type": "unrelated",
+                "query": refined_query,
+                "intent": card["intent"],
+                "answer": card["answer"],
             }, ensure_ascii=False))
             return
 
-        query = step1.get("query", "")
-        disease_name = step1.get("disease_name")
+        pool = await get_pool()
+        vec_list = query_vec.tolist()
 
-        # STEP 2: 병렬 벡터 검색
-        step2 = await run_step2(query, disease_name, call_id)
-
-        # 2B similar_cases 즉시 push
-        if step2.get("similar_cases"):
-            await websocket.send_text(json.dumps({
-                "type": "similar_cases",
-                "data": step2["similar_cases"],
-            }, ensure_ascii=False))
-
-        # 2C transfer_suggestion 즉시 push
-        if step2.get("transfer_suggestions"):
-            await websocket.send_text(json.dumps({
-                "type": "transfer_suggestion",
-                "data": step2["transfer_suggestions"],
-            }, ensure_ascii=False))
-
-        # 2A 결과 없음
-        if not step2.get("knowledge_chunks"):
-            await websocket.send_text(json.dumps({
-                "type": "ai_update",
-                "status": "no_result",
-                "query": query,
-            }, ensure_ascii=False))
-            return
-
-        # STEP 3: AI 안내 생성
-        answer, sources = await run_step3(
-            query, disease_name, step2["knowledge_chunks"], session.conversation_history
+        # STEP 2: 병렬 실행
+        #   2A: knowledge_chunks Hybrid 검색
+        #   2B: acw_cards 유사사례
+        #   2C: transfer_agencies
+        results = await asyncio.gather(
+            retrieve_knowledge(query_vec, refined_query, category),
+            _search_acw(pool, vec_list),
+            _search_transfer(pool, vec_list),
+            return_exceptions=True,
         )
 
-        session.ai_guidance = {
-            "query": query,
-            "disease_name": disease_name,
-            "is_oos": False,
-            "oos_type": None,
-            "oos_reason": None,
-            "answer": answer,
-            "sources": sources,
-        }
+        retrieval      = results[0] if not isinstance(results[0], Exception) else {"results": [], "_disease_filter": None}
+        similar_cases  = results[1] if not isinstance(results[1], Exception) else []
+        transfer_suggs = results[2] if not isinstance(results[2], Exception) else []
+
+        # 유사사례 즉시 push
+        if similar_cases:
+            await websocket.send_text(json.dumps({
+                "type": "similar_cases",
+                "data": similar_cases,
+            }, ensure_ascii=False))
+
+        # 이관기관 즉시 push
+        if transfer_suggs:
+            await websocket.send_text(json.dumps({
+                "type": "transfer_suggestion",
+                "data": transfer_suggs,
+            }, ensure_ascii=False))
+
+        # STEP 3: 카드 생성
+        card = await generate_card(refined_query, category, retrieval)
+
+        session.ai_guidance = _build_guidance(
+            refined_query, card, similar_cases, transfer_suggs, is_oos=False
+        )
 
         await websocket.send_text(json.dumps({
-            "type": "ai_update",
-            "status": "success",
-            "query": query,
-            "disease_name": disease_name,
-            "answer": answer,
-            "sources": sources,
+            "type":         "ai_update",
+            "status":       "success",
+            "query":        refined_query,
+            "category":     card["category"],
+            "intent":       card["intent"],
+            "answer":       card["answer"],
+            "references":   card["references"],
+            "disease_name": retrieval.get("_disease_filter"),
+            **({"emergency": True} if card.get("emergency") else {}),
         }, ensure_ascii=False))
 
     except Exception as e:
         print(f"[Pipeline 오류] {e}")
         await websocket.send_text(json.dumps({"type": "ai_update", "status": "error"}))
+
+
+def _build_guidance(query: str, card: dict, similar: list, transfer: list, is_oos: bool) -> dict:
+    return {
+        "query":        query,
+        "disease_name": card.get("_disease_filter"),
+        "is_oos":       is_oos,
+        "oos_type":     "unrelated" if is_oos else None,
+        "oos_reason":   card.get("answer") if is_oos else None,
+        "answer":       card.get("answer") if not is_oos else None,
+        "sources":      card.get("references", []),
+    }
