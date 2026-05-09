@@ -67,7 +67,11 @@ async def call_websocket(
                 }, ensure_ascii=False))
 
                 # 모든 발화를 LLMSession에 전달 (상담사 발화는 컨텍스트 누적만)
-                llm_result = await session.llm_session.on_utterance(text, speaker)
+                try:
+                    llm_result = await session.llm_session.on_utterance(text, speaker)
+                except Exception as e:
+                    print(f"[LLM 오류] {e}")
+                    llm_result = None
                 if llm_result:
                     await _run_pipeline(call_id, session, websocket, llm_result)
 
