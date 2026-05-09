@@ -1,5 +1,11 @@
-# 데이터베이스 설계서 v2.0
+# 데이터베이스 설계서 v2.1
 ## 질병관리청 1339 콜센터 AI 지원 시스템
+
+> 작성일: 2026-05-05  
+> v2.1 수정 (2026-05-06):  
+> - `agents`: `username` 컬럼 추가 (로그인 아이디, UNIQUE)  
+> - `acw_cards.ai_guidance`: `oos_type` 필드 추가  
+> - `category_master`: 분류 체계 변경 (`시스템`·`이관` → `접수처리`, `기타` → `범위외`) 및 시드 데이터 17행으로 재정의
 
 ---
 
@@ -23,9 +29,9 @@
 | --- | --- | --- | --- |
 | 1 | `agents` | 상담사 계정 관리 | 수동 입력 |
 | 2 | `calls` | 통화 세션 | 시스템 자동 생성 |
-| 3 | `acw_cards` | ACW 후처리 카드 + 유사사례 | 시스템 + DATA-016 |
-| 4 | `knowledge_chunks` | 통합 RAG 지식 청크 | DATA-001~014 |
-| 5 | `transfer_agencies` | 이관기관 정보 | DATA-015 |
+| 3 | `acw_cards` | ACW 후처리 카드 + 유사사례 (3,744건) | 시스템 + DATA_017_Merged_QA |
+| 4 | `knowledge_chunks` | 통합 RAG 지식 청크 (3,058청크) | DATA-001~017 (일부 미적재) |
+| 5 | `transfer_agencies` | 이관기관 정보 (123건) | DATA_016_질병관리청_소속기관.csv |
 | 6 | `category_master` | ACW 분류 시드 | 수동 정의 |
 
 ---
@@ -187,21 +193,32 @@ ACW 완료  → status = 'ended'
 
 **단일 테이블 설계 근거**: 동일 임베딩 모델(text-embedding-3-small) 사용 시 문서 타입에 관계없이 동일한 의미 공간에 투영되므로 통합 검색이 가능함. (Gao et al., 2024; LangChain, 2024)
 
-**데이터 출처 5종**
+**데이터 출처 (실제 적재 기준)**
 
-| data_id | 데이터 명 | 원본 데이터 | source_category | knowledge_type | 청크 수 |
-| --- | --- | --- | --- | --- | --- |
-| DATA-001~007 | chunks_covid 외 6종 | 감염병 지침 PDF | `disease` | `disease_guideline` | 1,705청크 |
-| DATA-008 | chunks_질병관리청_FAQ | 질병관리청 FAQ | `disease`, `system` 혼재 | `faq` | 164청크 |
-| DATA-009 | chunks_crawl | 질병관리청 법정감염병 정보 (크롤링) | `disease` | `disease_info` | 1,082청크 |
-| DATA-010 | chunks_감염병포털_FAQ | 질병관리청 감염병포털 FAQ | `system` | `faq` | 90청크 |
-| DATA-011~014 | chunks_hiv_system 외 3종 | 시스템 매뉴얼 | `system` | `system_manual` | 157청크 |
+| data_id | 문서명 | source_category | knowledge_type | 청크 수 |
+| --- | --- | --- | --- | --- |
+| DATA-001 | 2025년도 코로나19 관리지침 | `disease` | `disease_guideline` | 138 |
+| DATA-002 | 법정감염병 진단검사 통합지침(제4-2판) | `disease` | `disease_guideline` | 296 |
+| DATA-004 | 2026년 HIV/AIDS 관리지침 | `disease` | `disease_guideline` | 187 |
+| DATA-005 | MERS·SARS 대응지침 | `disease` | `disease_guideline` | 280 |
+| DATA-006 | 2026 국가결핵관리지침 | `disease` | `disease_guideline` | 419 |
+| DATA-007 | 제1급감염병 바이러스성출혈열 대응지침 | `disease` | `disease_guideline` | 245 |
+| DATA-008 | 질병관리청 FAQ | `disease`+`system` 혼재 | `faq` | 164 |
+| DATA-009 | 질병관리청 법정감염병 정보 (크롤링) | `disease` | `disease_info` | 1,082 |
+| DATA-012 | 2026년 HIV/AIDS 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 1 |
+| DATA-014 | 2025년도 코로나19 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 12 |
+| DATA-015 | 질병관리청 감염병포털 FAQ | `disease`+`system` 혼재 | `faq` | 90 |
+| DATA-016 | 질병보건통합관리시스템 결핵관리 설명서[보건소] | `system` | `system_manual` | 96 |
+| DATA-017 | 질병보건통합관리시스템 결핵관리 설명서[의료기관] | `system` | `system_manual` | 48 |
+
+> **미적재 data_id**: DATA-003(두창), DATA-010, DATA-011, DATA-013 — 원본 파싱 완료 전 또는 데이터 미확보로 적재 제외  
+> **총 knowledge_chunks**: 3,058청크
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 | --- | --- | --- | --- | --- |
 | id | SERIAL | NOT NULL | auto | PK |
 | source_id | VARCHAR(200) | NULL | — | 원본 파일의 id 값 |
-| data_id | VARCHAR(20) | NOT NULL | — | `'DATA-001'` ~ `'DATA-014'` |
+| data_id | VARCHAR(20) | NOT NULL | — | 적재된 값: `DATA-001~009`, `DATA-012`, `DATA-014~017` |
 | source_category | VARCHAR(10) | NOT NULL | — | `'disease'` \| `'system'` |
 | knowledge_type | VARCHAR(30) | NOT NULL | — | 아래 표 참고 |
 | disease_name | VARCHAR(100) | NULL | — | 관련 질병명 (system_faq는 NULL 가능) |
@@ -220,11 +237,10 @@ ACW 완료  → status = 'ended'
 
 | knowledge_type | source_category | chunk_text 포맷 | embed_text | 비고 |
 | --- | --- | --- | --- | --- |
-| `disease_guideline` | disease | `[감염병 지침] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-001~007 |
+| `disease_guideline` | disease | `[감염병 지침] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-001, 002, 004~007 |
 | `disease_info` | disease | `[감염병 정보] 질병명 \| 급 > 섹션\n본문` | chunk_text 전체 | DATA-009 |
-| `faq` | disease | `[감염병 FAQ] 질병명\nQ: ...\nA: ...` | Q 텍스트만 | DATA-008 감염병 정보 |
-| `faq` | system | `[시스템 FAQ]\nQ: ...\nA: ...` | Q 텍스트만 | DATA-010 시스템 정보 |
-| `system_manual` | system | `[시스템 매뉴얼] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-011~014 |
+| `faq` | disease/system | `[감염병 FAQ] 질병명\nQ: ...\nA: ...` / `[시스템 FAQ]\nQ: ...\nA: ...` | Q 텍스트만 | DATA-008, DATA-015 |
+| `system_manual` | system | `[시스템 매뉴얼] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-012, 014, 016, 017 |
 
 > **embed_text 분리 이유**: FAQ는 사용자 질문과 FAQ 질문 간 유사도 비교가 목적이므로 Q만 임베딩. chunk_text(Q+A 전체)로 임베딩하면 긴 답변 텍스트가 벡터를 희석시켜 검색 정확도 저하.
 
@@ -256,11 +272,41 @@ ACW 완료  → status = 'ended'
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 | --- | --- | --- | --- | --- |
 | id | SERIAL | NOT NULL | auto | PK |
-| category | VARCHAR(50) | NOT NULL | — | 카테고리 (예: `'감염병'`, `'접수처리'`, `'범위외'`) |
-| major | VARCHAR(100) | NOT NULL | — | 대분류 (예: `'코로나19'`, `'결핵'`) |
-| mid | VARCHAR(100) | NOT NULL | — | 중분류 (예: `'격리'`, `'신고'`) |
+| category | VARCHAR(50) | NOT NULL | — | 카테고리: `'감염병'` \| `'접수처리'` \| `'범위외'` |
+| major | VARCHAR(100) | NOT NULL | — | 대분류 (예: `'감염병 정보 문의'`, `'행정처리'`) |
+| mid | VARCHAR(100) | NOT NULL | — | 중분류 (예: `'감염병기본정보'`, `'권한관리'`) |
 
 > UNIQUE 제약: (category, major, mid) 조합 유일
+
+**시드 데이터 (17행)**
+
+| category | major | mid |
+| --- | --- | --- |
+| 감염병 | 감염병 정보 문의 | 감염병기본정보 |
+| 감염병 | 감염병 정보 문의 | 증상·건강상태 |
+| 감염병 | 감염병 정보 문의 | 소독·위생 |
+| 감염병 | 감염병 정보 문의 | 독감·계절질환 |
+| 감염병 | 감염병 정보 문의 | 백신 |
+| 감염병 | 감염병 정보 문의 | 치료제·의약품 |
+| 감염병 | 감염병 정보 문의 | 예방수칙·거리두기 |
+| 감염병 | 감염병 정보 문의 | 항균·방역용품 |
+| 감염병 | 감염병 지침 문의 | 감염병신고안내 |
+| 감염병 | 해외/검역 정보 문의 | 여행·입국 |
+| 감염병 | 감염병 통계·현황 | 국내외발생현황 |
+| 접수처리 | 행정처리 | 권한관리 |
+| 접수처리 | 행정처리 | 시스템오류 처리 |
+| 접수처리 | 행정처리 | 환자정보확인 |
+| 접수처리 | 행정처리 | 감염병신고 접수 |
+| 접수처리 | 행정처리 | 기타행정처리 |
+| 범위외 | 범위외 | 범위외 |
+
+**category 분류 기준**
+
+| category | 적용 조건 | is_oos / oos_type |
+| --- | --- | --- |
+| `감염병` | 감염병 관련 정상 상담 | `is_oos=false` |
+| `접수처리` | 시스템 신고·이관 등 행정처리 | `is_oos=true`, `oos_type='action_required'` |
+| `범위외` | 감염병과 무관한 문의 | `is_oos=true`, `oos_type='unrelated'` |
 
 ---
 
@@ -313,15 +359,16 @@ ACW 완료  → status = 'ended'
 ### 5.1 사전 적재 (전처리 스크립트)
 
 ```
-DATA-001~007  →  [전처리: chunk_text/embed_text 생성, 임베딩]      →  knowledge_chunks
-DATA-008      →  [전처리: 감염병 카테고리 필터, Q 추출]           →  knowledge_chunks
-DATA-009      →  [전처리: ▢ 섹션 분리, 질병명 정제]              →  knowledge_chunks
-DATA-010      →  [전처리: 시스템 카테고리 필터, Q 추출]           →  knowledge_chunks
-DATA-011~014  →  [전처리: text 필드 활용, 포맷 통일]              →  knowledge_chunks
-DATA-015      →  [전처리: 연락처 파싱, dept_name 정제, 임베딩]    →  transfer_agencies
-DATA-016      →  [전처리: 대화셋 그룹핑, Q/A 추출, 임베딩]        →  acw_cards (ai_hub)
-수동 정의      →  [시드 스크립트]                                 →  category_master
-수동 입력      →  [시드 스크립트]                                 →  agents
+DATA-001~007  →  [전처리: chunk_text/embed_text 생성, 임베딩]         →  knowledge_chunks (disease_guideline, DATA-003 미적재)
+DATA-008      →  [전처리: 감염병 카테고리 필터, Q 추출]               →  knowledge_chunks (faq, disease+system)
+DATA-009      →  [전처리: 섹션 분리, 질병명 정제]                     →  knowledge_chunks (disease_info)
+DATA-012,014  →  [전처리: 지침 내 시스템 매뉴얼 섹션 추출]            →  knowledge_chunks (system_manual, 소량)
+DATA-015      →  [전처리: 감염병포털 FAQ 파싱, Q 추출]                →  knowledge_chunks (faq, disease+system)
+DATA-016,017  →  [전처리: 시스템 사용 설명서 청킹]                    →  knowledge_chunks (system_manual)
+DATA_016_소속기관.csv  →  [전처리: 연락처 파싱, 임베딩]              →  transfer_agencies
+DATA_017_Merged_QA    →  [전처리: 대화셋 그룹핑, Q/A 추출, 임베딩]   →  acw_cards (ai_hub)
+수동 정의      →  [시드 스크립트]                                      →  category_master
+수동 입력      →  [시드 스크립트]                                      →  agents
 ```
 
 ### 5.2 런타임 생성 (API)
@@ -366,11 +413,11 @@ ACW 완료   →  acw_cards INSERT (source='system')
 ### 5.3 적재 순서
 
 ```
-1단계  category_master     (시드, FK 없음)
+1단계  category_master     (시드 17행, FK 없음)
 2단계  agents              (시드, FK 없음)
-3단계  transfer_agencies   (DATA-015, FK 없음)
-4단계  knowledge_chunks    (DATA-001~014, FK 없음)
-5단계  acw_cards (ai_hub)  (DATA-016, call_id/agent_id NULL)
+3단계  transfer_agencies   (DATA_016_소속기관.csv, FK 없음, 123건)
+4단계  knowledge_chunks    (DATA-001~017 일부, FK 없음, 3,058청크)
+5단계  acw_cards (ai_hub)  (DATA_017_Merged_QA, call_id/agent_id NULL, 3,544건)
 ```
 
 ---
@@ -454,4 +501,4 @@ ACW 완료   →  acw_cards INSERT (source='system')
 
 ---
 
-*DB 설계서 v2.0 — 2026-05-05*
+*DB 설계서 v2.1 — 2026-05-06*
