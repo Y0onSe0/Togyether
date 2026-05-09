@@ -1,6 +1,8 @@
 """
 STEP 3: 카드 생성기
 retrieval 결과 → 상담사 카드 JSON
+
+카테고리: 감염병 | 접수처리 | 범위외
 """
 import json
 from openai import AsyncOpenAI

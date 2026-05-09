@@ -89,9 +89,10 @@ async def _run_pipeline(call_id: int, session, websocket: WebSocket, llm_result:
     await websocket.send_text(json.dumps({"type": "ai_update", "status": "loading"}))
 
     try:
-        category     = llm_result["category"]
+        category      = llm_result["category"]
         refined_query = llm_result["refined_query"]
-        query_vec    = llm_result["_query_vec"]   # llm_session에서 이미 생성된 벡터
+        query_vec     = llm_result["_query_vec"]   # llm_session에서 이미 생성된 벡터
+        disease_name  = llm_result.get("disease_name")  # 감염병일 때만 존재
 
         # 범위외: 카드만 생성하고 종료
         if category == "범위외":
@@ -115,7 +116,7 @@ async def _run_pipeline(call_id: int, session, websocket: WebSocket, llm_result:
         #   2B: acw_cards 유사사례
         #   2C: transfer_agencies
         results = await asyncio.gather(
-            retrieve_knowledge(query_vec, refined_query, category),
+            retrieve_knowledge(query_vec, refined_query, category, disease_name=disease_name),
             _search_acw(pool, vec_list),
             _search_transfer(pool, vec_list),
             return_exceptions=True,
