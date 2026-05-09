@@ -29,9 +29,9 @@
 | --- | --- | --- | --- |
 | 1 | `agents` | 상담사 계정 관리 | 수동 입력 |
 | 2 | `calls` | 통화 세션 | 시스템 자동 생성 |
-| 3 | `acw_cards` | ACW 후처리 카드 + 유사사례 (3,744건) | 시스템 + DATA_017_Merged_QA |
-| 4 | `knowledge_chunks` | 통합 RAG 지식 청크 (3,058청크) | DATA-001~017 (일부 미적재) |
-| 5 | `transfer_agencies` | 이관기관 정보 (123건) | DATA_016_질병관리청_소속기관.csv |
+| 3 | `acw_cards` | ACW 후처리 카드 + 유사사례 (3,744건) | DATA-016 (system 200 + ai_hub 3,544) |
+| 4 | `knowledge_chunks` | 통합 RAG 지식 청크 (3,058청크) | DATA-001~014 (DATA-003 미적재) |
+| 5 | `transfer_agencies` | 이관기관 정보 (123건) | DATA-015 |
 | 6 | `category_master` | ACW 분류 시드 | 수동 정의 |
 
 ---
@@ -195,30 +195,31 @@ ACW 완료  → status = 'ended'
 
 **데이터 출처 (실제 적재 기준)**
 
-| data_id | 문서명 | source_category | knowledge_type | 청크 수 |
-| --- | --- | --- | --- | --- |
-| DATA-001 | 2025년도 코로나19 관리지침 | `disease` | `disease_guideline` | 138 |
-| DATA-002 | 법정감염병 진단검사 통합지침(제4-2판) | `disease` | `disease_guideline` | 296 |
-| DATA-004 | 2026년 HIV/AIDS 관리지침 | `disease` | `disease_guideline` | 187 |
-| DATA-005 | MERS·SARS 대응지침 | `disease` | `disease_guideline` | 280 |
-| DATA-006 | 2026 국가결핵관리지침 | `disease` | `disease_guideline` | 419 |
-| DATA-007 | 제1급감염병 바이러스성출혈열 대응지침 | `disease` | `disease_guideline` | 245 |
-| DATA-008 | 질병관리청 FAQ | `disease`+`system` 혼재 | `faq` | 164 |
-| DATA-009 | 질병관리청 법정감염병 정보 (크롤링) | `disease` | `disease_info` | 1,082 |
-| DATA-012 | 2026년 HIV/AIDS 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 1 |
-| DATA-014 | 2025년도 코로나19 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 12 |
-| DATA-015 | 질병관리청 감염병포털 FAQ | `disease`+`system` 혼재 | `faq` | 90 |
-| DATA-016 | 질병보건통합관리시스템 결핵관리 설명서[보건소] | `system` | `system_manual` | 96 |
-| DATA-017 | 질병보건통합관리시스템 결핵관리 설명서[의료기관] | `system` | `system_manual` | 48 |
+| data_id | 파일명 | 문서명 | source_category | knowledge_type | 청크 수 |
+| --- | --- | --- | --- | --- | --- |
+| DATA-001 | DATA_001_chunks_covid | 2025년도 코로나19 관리지침 | `disease` | `disease_guideline` | 138 |
+| DATA-002 | DATA_002_chunks_diagnostic | 법정감염병 진단검사 통합지침(제4-2판) | `disease` | `disease_guideline` | 296 |
+| DATA-003 | *(미적재)* | 두창 관리지침 | — | — | — |
+| DATA-004 | DATA_004_chunks_hiv | 2026년 HIV/AIDS 관리지침 | `disease` | `disease_guideline` | 187 |
+| DATA-005 | DATA_005_chunks_mers | MERS·SARS 대응지침 | `disease` | `disease_guideline` | 280 |
+| DATA-006 | DATA_006_chunks_tb | 2026 국가결핵관리지침 | `disease` | `disease_guideline` | 419 |
+| DATA-007 | DATA_007_chunks_vhf | 제1급감염병 바이러스성출혈열 대응지침 | `disease` | `disease_guideline` | 245 |
+| DATA-008 | DATA_008_chunks_질병관리청_FAQ | 질병관리청 FAQ | `disease`+`system` | `faq` | 164 |
+| DATA-009 | DATA_009_chunks_crawl | 질병관리청 법정감염병 정보 (크롤링) | `disease` | `disease_info` | 1,082 |
+| DATA-010 | DATA_010_chunks_faq | 질병관리청 감염병포털 FAQ | `disease`+`system` | `faq` | 90 |
+| DATA-011 | DATA_011_chunks_hiv_system | 2026년 HIV/AIDS 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 1 |
+| DATA-012 | DATA_012_chunks_covid19_system | 2025년도 코로나19 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 12 |
+| DATA-013 | DATA_013_chunks_tb_system | 결핵관리 사용자 이용 설명서[보건소] | `system` | `system_manual` | 96 |
+| DATA-014 | DATA_014_chunks_tb_hospital | 결핵관리 사용자 이용 설명서[의료기관] | `system` | `system_manual` | 48 |
 
-> **미적재 data_id**: DATA-003(두창), DATA-010, DATA-011, DATA-013 — 원본 파싱 완료 전 또는 데이터 미확보로 적재 제외  
-> **총 knowledge_chunks**: 3,058청크
+> **DATA-003 미적재**: 두창(Mpox) 원본 데이터 미확보  
+> **총 knowledge_chunks**: 3,058청크 (DATA-003 제외)
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 | --- | --- | --- | --- | --- |
 | id | SERIAL | NOT NULL | auto | PK |
 | source_id | VARCHAR(200) | NULL | — | 원본 파일의 id 값 |
-| data_id | VARCHAR(20) | NOT NULL | — | 적재된 값: `DATA-001~009`, `DATA-012`, `DATA-014~017` |
+| data_id | VARCHAR(20) | NOT NULL | — | `'DATA-001'` ~ `'DATA-014'` (DATA-003 미적재) |
 | source_category | VARCHAR(10) | NOT NULL | — | `'disease'` \| `'system'` |
 | knowledge_type | VARCHAR(30) | NOT NULL | — | 아래 표 참고 |
 | disease_name | VARCHAR(100) | NULL | — | 관련 질병명 (system_faq는 NULL 가능) |
@@ -239,8 +240,8 @@ ACW 완료  → status = 'ended'
 | --- | --- | --- | --- | --- |
 | `disease_guideline` | disease | `[감염병 지침] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-001, 002, 004~007 |
 | `disease_info` | disease | `[감염병 정보] 질병명 \| 급 > 섹션\n본문` | chunk_text 전체 | DATA-009 |
-| `faq` | disease/system | `[감염병 FAQ] 질병명\nQ: ...\nA: ...` / `[시스템 FAQ]\nQ: ...\nA: ...` | Q 텍스트만 | DATA-008, DATA-015 |
-| `system_manual` | system | `[시스템 매뉴얼] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-012, 014, 016, 017 |
+| `faq` | disease/system | `[감염병 FAQ] 질병명\nQ: ...\nA: ...` / `[시스템 FAQ]\nQ: ...\nA: ...` | Q 텍스트만 | DATA-008, DATA-010 |
+| `system_manual` | system | `[시스템 매뉴얼] 질병명 \| 챕터 > 섹션\n본문` | chunk_text 전체 | DATA-011, 012, 013, 014 |
 
 > **embed_text 분리 이유**: FAQ는 사용자 질문과 FAQ 질문 간 유사도 비교가 목적이므로 Q만 임베딩. chunk_text(Q+A 전체)로 임베딩하면 긴 답변 텍스트가 벡터를 희석시켜 검색 정확도 저하.
 
@@ -249,7 +250,7 @@ ACW 완료  → status = 'ended'
 ### 2.5 `transfer_agencies`
 
 **설명**: 이관 가능한 외부 기관 정보. 고객 문의 내용과 기관 담당업무 간 벡터 유사도 검색으로 적합 기관 추천.  
-**데이터 출처**: DATA-015 이관기관 연락처 (질병관리청 홈페이지)
+**데이터 출처**: DATA-015 (DATA_015_질병관리청_소속기관.csv)
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 | --- | --- | --- | --- | --- |
@@ -359,16 +360,15 @@ ACW 완료  → status = 'ended'
 ### 5.1 사전 적재 (전처리 스크립트)
 
 ```
-DATA-001~007  →  [전처리: chunk_text/embed_text 생성, 임베딩]         →  knowledge_chunks (disease_guideline, DATA-003 미적재)
-DATA-008      →  [전처리: 감염병 카테고리 필터, Q 추출]               →  knowledge_chunks (faq, disease+system)
-DATA-009      →  [전처리: 섹션 분리, 질병명 정제]                     →  knowledge_chunks (disease_info)
-DATA-012,014  →  [전처리: 지침 내 시스템 매뉴얼 섹션 추출]            →  knowledge_chunks (system_manual, 소량)
-DATA-015      →  [전처리: 감염병포털 FAQ 파싱, Q 추출]                →  knowledge_chunks (faq, disease+system)
-DATA-016,017  →  [전처리: 시스템 사용 설명서 청킹]                    →  knowledge_chunks (system_manual)
-DATA_016_소속기관.csv  →  [전처리: 연락처 파싱, 임베딩]              →  transfer_agencies
-DATA_017_Merged_QA    →  [전처리: 대화셋 그룹핑, Q/A 추출, 임베딩]   →  acw_cards (ai_hub)
-수동 정의      →  [시드 스크립트]                                      →  category_master
-수동 입력      →  [시드 스크립트]                                      →  agents
+DATA-001~007  →  [전처리: chunk_text/embed_text 생성, 임베딩]     →  knowledge_chunks (disease_guideline, DATA-003 미적재)
+DATA-008      →  [전처리: 감염병 카테고리 필터, Q 추출]           →  knowledge_chunks (faq, disease+system)
+DATA-009      →  [전처리: 섹션 분리, 질병명 정제]                 →  knowledge_chunks (disease_info)
+DATA-010      →  [전처리: 감염병포털 FAQ 파싱, Q 추출]            →  knowledge_chunks (faq, disease+system)
+DATA-011~014  →  [전처리: 시스템 매뉴얼/지침 청킹, 임베딩]        →  knowledge_chunks (system_manual)
+DATA-015      →  [전처리: 연락처 파싱, 임베딩]                    →  transfer_agencies (123건)
+DATA-016      →  [전처리: 대화셋 그룹핑, Q/A 추출, 임베딩]        →  acw_cards (system 200 + ai_hub 3,544건)
+수동 정의      →  [시드 스크립트]                                  →  category_master (17행)
+수동 입력      →  [시드 스크립트]                                  →  agents
 ```
 
 ### 5.2 런타임 생성 (API)
@@ -415,9 +415,9 @@ ACW 완료   →  acw_cards INSERT (source='system')
 ```
 1단계  category_master     (시드 17행, FK 없음)
 2단계  agents              (시드, FK 없음)
-3단계  transfer_agencies   (DATA_016_소속기관.csv, FK 없음, 123건)
-4단계  knowledge_chunks    (DATA-001~017 일부, FK 없음, 3,058청크)
-5단계  acw_cards (ai_hub)  (DATA_017_Merged_QA, call_id/agent_id NULL, 3,544건)
+3단계  transfer_agencies   (DATA-015, FK 없음, 123건)
+4단계  knowledge_chunks    (DATA-001~014, FK 없음, 3,058청크, DATA-003 제외)
+5단계  acw_cards           (DATA-016, system 200건 + ai_hub 3,544건)
 ```
 
 ---
