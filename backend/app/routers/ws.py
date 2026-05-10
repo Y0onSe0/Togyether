@@ -90,7 +90,7 @@ async def _run_pipeline(call_id: int, session, websocket: WebSocket, llm_result:
 
     try:
         category      = llm_result["category"]
-        refined_query = llm_result["refined_query"]
+        refined_query = llm_result["query"]
         query_vec     = llm_result["_query_vec"]   # llm_session에서 이미 생성된 벡터
         disease_name  = llm_result.get("disease_name")  # 감염병일 때만 존재
 
