@@ -1,17 +1,33 @@
 """
-STEP 3: 카드 생성기
-retrieval 결과 → 상담사 카드 JSON
+카드 생성기 v3 — retrieve_all() 결과 → ai_guidance dict
 
-카테고리: 감염병 | 접수처리 | 범위외
+변경사항 (v3):
+  - 입력: query, is_oos, oos_type, oos_reason, disease_name, retrieval (retrieve_all 반환값)
+  - 임계값 제거 (retrieve_all에서 cosine ≥ 0.70 필터 완료)
+  - 출력 status: success | oos | no_result (RTL-UI-001)
+  - sources 필드: chunk_id, document_title, section_title, data_id, chunk_text
+
+출력 (ai_guidance 캐시 구조):
+  success:   {status, query, disease_name, answer, sources[{chunk_id, document_title, section_title, data_id, chunk_text}]}
+  oos:       {status, oos_type, oos_reason}
+  no_result: {status, query}
 """
+
 import json
+import os
 from openai import AsyncOpenAI
-from app.core.config import settings
 
 _client: AsyncOpenAI | None = None
 
-KNOWLEDGE_SCORE_THRESHOLD = 0.40
 
+def _get_client() -> AsyncOpenAI:
+    global _client
+    if _client is None:
+        _client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    return _client
+
+
+# ── 응급 감지 ──────────────────────────────────────────────────
 EMERGENCY_KEYWORDS = [
     "경련", "의식 잃", "의식을 잃", "의식이 없", "의식없", "의식불명",
     "심정지", "심폐소생", "쓰러", "실신",
@@ -21,6 +37,12 @@ EMERGENCY_KEYWORDS = [
     "응급", "위급", "생명이 위험", "119",
 ]
 
+
+def _is_emergency(query: str) -> bool:
+    return any(kw in query for kw in EMERGENCY_KEYWORDS)
+
+
+# ── RAG LLM 프롬프트 ───────────────────────────────────────────
 RAG_SYSTEM = """당신은 질병관리청 콜센터 상담사 보조 AI입니다.
 고객 문의와 아래 [문서]를 바탕으로 상담사가 전화 통화 중 바로 읽을 수 있는 카드를 만드세요.
 
@@ -39,104 +61,108 @@ RAG_SYSTEM = """당신은 질병관리청 콜센터 상담사 보조 AI입니다
 - '병원 방문 권유', '진료 받으세요', '전문의 상담' 등 일반 의학 조언은 절대 추가하지 말 것"""
 
 
-def _get_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    return _client
-
-
-def _is_emergency(query: str) -> bool:
-    return any(kw in query for kw in EMERGENCY_KEYWORDS)
-
-
+# ── 헬퍼 ──────────────────────────────────────────────────────
 def _chunk_label(c: dict) -> str:
     disease = c.get("disease_name", "")
-    section = c.get("section_title") or c.get("section") or c.get("title", "")
+    section = c.get("section_title", "")
     if disease and section:
         return f"{disease} / {section}"
-    return disease or section or ""
+    return disease or section or c.get("document_title", "")
 
 
-def _extract_references(chunks: list) -> list[dict]:
-    return [
-        {
-            "source_id":      c.get("source_id", ""),
-            "knowledge_type": c.get("knowledge_type", ""),
-            "disease":        c.get("disease_name", ""),
-            "section":        c.get("section_title") or c.get("section", ""),
-            "chunk_text":     c.get("chunk_text", "")[:300],
-            "score":          round(c.get("score", 0), 4),
-        }
-        for c in chunks
-    ]
+def _make_source(c: dict) -> dict:
+    return {
+        "chunk_id":       c.get("chunk_id", ""),
+        "document_title": c.get("document_title", ""),
+        "section_title":  c.get("section_title", ""),
+        "data_id":        c.get("data_id", ""),
+        "chunk_text":     c.get("chunk_text", "")[:300],
+    }
 
 
-async def generate_card(refined_query: str, category: str, retrieval: dict) -> dict:
+async def _call_llm(system: str, user: str, max_tokens: int = 200) -> dict:
+    resp = await _get_client().chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user},
+        ],
+        temperature=0,
+        max_tokens=max_tokens,
+        response_format={"type": "json_object"},
+    )
+    return json.loads(resp.choices[0].message.content)
+
+
+# ── 메인 ──────────────────────────────────────────────────────
+async def generate_card(
+    query: str,
+    is_oos: bool,
+    oos_type: str | None,
+    oos_reason: str | None,
+    disease_name: str | None,
+    retrieval: dict,
+) -> dict:
     """
-    retrieval(retrieve_knowledge() 반환값) → 상담사 카드 dict
+    retrieve_all() 결과 → ai_guidance dict (RTL-UI-001)
 
-    반환 필드:
-      category, intent, answer, references, _disease_filter, [emergency]
+    파라미터:
+      query        — STEP 1 정제 쿼리
+      is_oos       — STEP 1 출력
+      oos_type     — "action_required" | "unrelated" | None
+      oos_reason   — OOS 사유 (is_oos=true 시)
+      disease_name — STEP 1 출력, nullable
+      retrieval    — retrieve_all() 반환값
+
+    반환 (status별):
+      success:   {status, query, disease_name, answer, sources, [emergency]}
+      oos:       {status, oos_type, oos_reason, [emergency]}
+      no_result: {status, query, [emergency]}
     """
-    results = retrieval.get("results", [])
-    disease_filter = retrieval.get("_disease_filter")
-    is_emergency = _is_emergency(refined_query)
+    is_emergency = _is_emergency(query)
 
-    if category == "범위외":
+    # ── OOS 처리 (2-A 미실행) ──────────────────────────────────
+    if is_oos:
         card = {
-            "category":       "범위외",
-            "intent":         refined_query,
-            "answer":         "질병관리청 소관 외 문의입니다.",
-            "references":     [],
-            "_disease_filter": None,
+            "status":     "oos",
+            "oos_type":   oos_type,
+            "oos_reason": oos_reason,
         }
         if is_emergency:
             card["emergency"] = True
         return card
 
-    top_cos = max((c.get("cos_score", 0) for c in results), default=0)
-    if not results or top_cos < KNOWLEDGE_SCORE_THRESHOLD:
+    # ── 2-A 결과 확인 (threshold는 retrieve_all에서 처리됨) ──────
+    step2a = retrieval.get("step2a", [])
+
+    if not step2a:
         card = {
-            "category":       category,
-            "intent":         refined_query,
-            "answer":         "관련 지침에서 명확한 내용을 찾지 못했습니다.",
-            "references":     _extract_references(results[:3]),
-            "_disease_filter": disease_filter,
+            "status": "no_result",
+            "query":  query,
         }
         if is_emergency:
             card["emergency"] = True
         return card
 
-    top_chunks = results[:3]
+    # ── LLM 카드 생성 (2-A 상위 3개 청크 사용) ────────────────
+    top_chunks = step2a[:3]
     chunks_text = "\n\n".join(
         f"[{_chunk_label(c)}]\n{c.get('chunk_text', '')[:500]}"
         for c in top_chunks
     )
-    user_msg = f"고객 문의: {refined_query}\n\n[문서]\n{chunks_text}"
-
-    resp = await _get_client().chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": RAG_SYSTEM},
-            {"role": "user",   "content": user_msg},
-        ],
-        temperature=0,
-        max_tokens=200,
-        response_format={"type": "json_object"},
-    )
-    llm = json.loads(resp.choices[0].message.content)
+    user_msg = f"고객 문의: {query}\n\n[문서]\n{chunks_text}"
+    llm = await _call_llm(RAG_SYSTEM, user_msg)
 
     FALLBACK = "관련 지침에서 명확한 내용을 찾지 못했습니다."
     raw_answer = llm.get("answer", FALLBACK)
     answer = FALLBACK if FALLBACK in raw_answer else raw_answer
 
     card = {
-        "category":        category,
-        "intent":          llm.get("intent", refined_query),
-        "answer":          answer,
-        "references":      _extract_references(top_chunks),
-        "_disease_filter": disease_filter,
+        "status":       "success",
+        "query":        query,
+        "disease_name": disease_name,
+        "answer":       answer,
+        "sources":      [_make_source(c) for c in top_chunks],
     }
     if is_emergency:
         card["emergency"] = True
