@@ -15,7 +15,6 @@ env/
 .venv/
 
 # 대용량 원본 데이터 (별도 공유)
-db/scripts/parsed/
 data/
 상담/
 *.pdf

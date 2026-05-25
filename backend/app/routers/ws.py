@@ -5,9 +5,9 @@ WS /ws/call/{call_id}?token={access_token}
 파이프라인:
   발화 수신
   → STEP 1 (llm_session): READY 판정 + 카테고리 분류
-  → STEP 2A (retrieval):  pgvector Hybrid 검색 (knowledge_chunks)
-    STEP 2B (step2):      acw_cards 유사사례 검색  ┐ 병렬
-    STEP 2C (step2):      transfer_agencies 검색   ┘
+  → STEP 2A (retrieval):  Hybrid RAG 검색 (in-memory BM25+Dense+Rerank)
+    STEP 2B (step2_search): acw_cards 유사사례 검색  ┐ 병렬 (DB)
+    STEP 2C (step2_search): transfer_agencies 검색   ┘
   → STEP 3 (card_generator): 상담사 카드 생성
 """
 import asyncio
@@ -64,7 +64,6 @@ async def call_websocket(
         while True:
             data = await websocket.receive()
 
-            # 클라이언트 연결 종료 감지
             if data.get("type") == "websocket.disconnect":
                 break
 
@@ -86,7 +85,6 @@ async def call_websocket(
                 turn = {"speaker": speaker, "text": text, "timestamp": timestamp}
                 session.conversation_history.append(turn)
 
-                # 모든 연결에 대화 업데이트 브로드캐스트
                 await _broadcast(call_id, json.dumps({
                     "type": "conversation_update",
                     "speaker": speaker,
@@ -94,18 +92,17 @@ async def call_websocket(
                     "timestamp": timestamp,
                 }, ensure_ascii=False))
 
-                # 고객 발화만 LLM 파이프라인 실행
-                if speaker != "상담사":
-                    try:
-                        llm_result = await session.llm_session.on_utterance(text, speaker)
-                    except Exception as e:
-                        print(f"[LLM 오류] {e}")
-                        llm_result = None
-                    if llm_result:
-                        await _run_pipeline(call_id, session, llm_result)
+                # 모든 발화를 LLMSession에 전달 (상담사 발화는 컨텍스트 누적만, LLM 호출 없음)
+                try:
+                    llm_result = await session.llm_session.on_utterance(text, speaker)
+                except Exception as e:
+                    print(f"[LLM 오류] {e}")
+                    llm_result = None
+                if llm_result:
+                    await _run_pipeline(call_id, session, llm_result)
 
     except WebSocketDisconnect:
-        print(f"[WS] 종료: call_id={call_id}")
+        pass
     except RuntimeError as e:
         print(f"[WS] 연결 오류: call_id={call_id}, {e}")
     finally:
@@ -113,37 +110,42 @@ async def call_websocket(
         if not _connections.get(call_id):
             _connections.pop(call_id, None)
             close_session(call_id)
-        print(f"[WS] 세션 정리: call_id={call_id}")
+        print(f"[WS] 종료: call_id={call_id}, 남은연결={len(_connections.get(call_id, set()))}")
 
 
 async def _run_pipeline(call_id: int, session, llm_result: dict):
-    """STEP 2A/B/C 병렬 → STEP 3"""
+    """STEP 2A (Hybrid RAG) + 2B/2C (DB) 병렬 → STEP 3"""
+    from app.services.pipeline.retrieval import retrieve_all
     from app.services.pipeline.card_generator import generate_card
-    from app.services.pipeline.step2_search import _search_knowledge, _search_acw, _search_transfer
+    from app.services.pipeline.step2_search import _search_acw, _search_transfer
     from app.core.database import get_pool
 
     await _broadcast(call_id, json.dumps({"type": "ai_update", "status": "loading"}))
 
     try:
-        is_oos        = llm_result["is_oos"]
-        oos_type      = llm_result.get("oos_type")
-        oos_reason    = llm_result.get("oos_reason")
-        category      = llm_result["category"]
-        refined_query = llm_result["query"]
-        query_vec     = llm_result["_query_vec"]   # llm_session에서 이미 생성된 벡터
-        disease_name  = llm_result.get("disease_name")
+        category     = llm_result["category"]
+        query        = llm_result["query"]
+        query_vec    = llm_result["_query_vec"]
+        disease_name = llm_result.get("disease_name")
+        is_oos       = llm_result.get("is_oos", False)
+        oos_type     = llm_result.get("oos_type")
+        oos_reason   = llm_result.get("oos_reason")
 
         pool = await get_pool()
         vec_list = query_vec.tolist()
 
         # STEP 2: 병렬 실행
-        #   2A: knowledge_chunks DB 검색 (is_oos=false 시에만)
-        #   2B: acw_cards 유사사례
-        #   2C: transfer_agencies
+        #   2A: Hybrid RAG in-memory (is_oos=false 시에만)
+        #   2B: acw_cards DB 검색
+        #   2C: transfer_agencies DB 검색
+        empty_retrieval = {"step2a": [], "step2b": [], "step2c": [], "_disease_filter": None}
+
         if is_oos:
-            knowledge_task = asyncio.sleep(0)  # 스킵
+            knowledge_task = asyncio.sleep(0)
         else:
-            knowledge_task = _search_knowledge(pool, vec_list, disease_name)
+            knowledge_task = retrieve_all(
+                query, is_oos=False, disease_name=disease_name, query_vec=query_vec
+            )
 
         results = await asyncio.gather(
             knowledge_task,
@@ -152,15 +154,9 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             return_exceptions=True,
         )
 
-        knowledge_chunks = (results[0] if not isinstance(results[0], Exception) else []) if not is_oos else []
-        similar_cases    = results[1] if not isinstance(results[1], Exception) else []
-        transfer_suggs   = results[2] if not isinstance(results[2], Exception) else []
-
-        # generate_card가 기대하는 retrieval 구조로 변환
-        retrieval = {
-            "step2a":          knowledge_chunks,
-            "_disease_filter": disease_name if knowledge_chunks else None,
-        }
+        retrieval      = (results[0] if not isinstance(results[0], Exception) else empty_retrieval) if not is_oos else empty_retrieval
+        similar_cases  = results[1] if not isinstance(results[1], Exception) else []
+        transfer_suggs = results[2] if not isinstance(results[2], Exception) else []
 
         # 유사사례 즉시 push
         if similar_cases:
@@ -177,9 +173,11 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             }, ensure_ascii=False))
 
         # STEP 3: 카드 생성
-        card = await generate_card(refined_query, is_oos, oos_type, oos_reason, disease_name, retrieval)
+        card = await generate_card(
+            query, is_oos, oos_type, oos_reason, disease_name, retrieval, category=category
+        )
 
-        session.ai_guidance = _build_guidance(refined_query, card, similar_cases, transfer_suggs)
+        session.ai_guidance = _build_guidance(query, card, similar_cases, transfer_suggs)
 
         card_status = card.get("status", "error")
 
@@ -187,9 +185,18 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             await _broadcast(call_id, json.dumps({
                 "type":     "ai_update",
                 "status":   "oos",
-                "oos_type": card.get("oos_type"),
-                "query":    refined_query,
-                "answer":   card.get("oos_reason"),
+                "oos_type": oos_type,
+                "query":    query,
+                "answer":   card.get("oos_reason", ""),
+                **({"emergency": True} if card.get("emergency") else {}),
+            }, ensure_ascii=False))
+
+        elif card_status == "api_pending":
+            await _broadcast(call_id, json.dumps({
+                "type":     "ai_update",
+                "status":   "api_pending",
+                "category": category,
+                "query":    query,
                 **({"emergency": True} if card.get("emergency") else {}),
             }, ensure_ascii=False))
 
@@ -197,9 +204,10 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             await _broadcast(call_id, json.dumps({
                 "type":         "ai_update",
                 "status":       "success",
-                "query":        refined_query,
+                "query":        query,
                 "category":     category,
-                "answer":       card.get("answer"),
+                "intent":       card.get("intent", ""),
+                "answer":       card.get("answer", ""),
                 "references":   card.get("sources", []),
                 "disease_name": retrieval.get("_disease_filter"),
                 **({"emergency": True} if card.get("emergency") else {}),
@@ -209,26 +217,26 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             await _broadcast(call_id, json.dumps({
                 "type":     "ai_update",
                 "status":   "no_result",
-                "query":    refined_query,
+                "query":    query,
                 "category": category,
             }, ensure_ascii=False))
 
     except Exception as e:
-        print(f"[Pipeline 오류] {e}")
         import traceback
+        print(f"[Pipeline 오류] {e}")
         traceback.print_exc()
         await _broadcast(call_id, json.dumps({"type": "ai_update", "status": "error"}))
 
 
 def _build_guidance(query: str, card: dict, similar: list, transfer: list) -> dict:
-    status = card.get("status")
+    card_status = card.get("status")
     return {
         "query":        query,
-        "status":       status,
-        "is_oos":       status == "oos",
+        "status":       card_status,
+        "is_oos":       card_status == "oos",
         "oos_type":     card.get("oos_type"),
         "oos_reason":   card.get("oos_reason"),
         "disease_name": card.get("disease_name"),
-        "answer":       card.get("answer") if status == "success" else None,
+        "answer":       card.get("answer") if card_status == "success" else None,
         "sources":      card.get("sources", []),
     }

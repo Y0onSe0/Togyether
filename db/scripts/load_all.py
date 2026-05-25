@@ -27,6 +27,8 @@ import csv
 import argparse
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
 sys.path.append(str(Path(__file__).parent))
 from config import OPENAI_API_KEY
 from modules.connect_db import connect_db

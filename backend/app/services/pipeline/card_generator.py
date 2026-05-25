@@ -1,16 +1,17 @@
 """
-카드 생성기 v3 — retrieve_all() 결과 → ai_guidance dict
+카드 생성기 v4 — retrieve_all() 결과 → ai_guidance dict
 
-변경사항 (v3):
-  - 입력: query, is_oos, oos_type, oos_reason, disease_name, retrieval (retrieve_all 반환값)
-  - 임계값 제거 (retrieve_all에서 cosine ≥ 0.70 필터 완료)
-  - 출력 status: success | oos | no_result (RTL-UI-001)
-  - sources 필드: chunk_id, document_title, section_title, data_id, chunk_text
+변경사항 (v4):
+  - category 파라미터 추가
+  - api_pending 분기 추가 (예방접종/통계/해외검역 → API 연동 예정)
+  - intent 필드 추가 (고객 의도 10자 이내 명사구)
+  - 출력 status: success | api_pending | oos | no_result
 
 출력 (ai_guidance 캐시 구조):
-  success:   {status, query, disease_name, answer, sources[{chunk_id, document_title, section_title, data_id, chunk_text}]}
-  oos:       {status, oos_type, oos_reason}
-  no_result: {status, query}
+  success:     {status, query, disease_name, intent, answer, sources[{chunk_id, document_title, section_title, data_id, chunk_text}]}
+  api_pending: {status, category, query}
+  oos:         {status, oos_type, oos_reason}
+  no_result:   {status, query}
 """
 
 import json
@@ -37,6 +38,9 @@ EMERGENCY_KEYWORDS = [
     "응급", "위급", "생명이 위험", "119",
 ]
 
+# api_pending 분기 대상 카테고리
+API_PENDING_CATEGORIES = {"예방접종", "감염병 통계·현황", "해외/검역 정보 문의"}
+
 
 def _is_emergency(query: str) -> bool:
     return any(kw in query for kw in EMERGENCY_KEYWORDS)
@@ -53,13 +57,13 @@ RAG_SYSTEM = """당신은 질병관리청 콜센터 상담사 보조 AI입니다
 }
 
 규칙:
-- answer는 [문서]에 명시된 내용을 최우선으로 사용할 것
-- [문서] 내용이 질문에 직접 답하지 않더라도, 관련 정보(잠복기·증상·조치 등)가 있으면 그것을 바탕으로 유용한 정보를 제공할 것
-- [문서]에 전혀 관련 내용이 없을 때만: "관련 지침에서 명확한 내용을 찾지 못했습니다."
-- [문서]에 없는 구체적 수치·날짜·기관명을 새로 만들어내지 말 것 (문서에 있는 수치는 그대로 활용)
+- answer는 반드시 아래 [문서]에 명시된 내용에만 근거할 것
+- [문서]에 없는 수치·날짜·기관명·절차는 절대 생성하지 말 것
+- [문서]에 명확한 답이 없으면 반드시: "관련 지침에서 명확한 내용을 찾지 못했습니다."
 - 말투: 상담사가 고객에게 직접 말하는 구어체 ('~입니다', '~하시면 됩니다')
 - 지침 원문을 그대로 붙여넣지 말고, 핵심만 쉽게 재서술할 것
-- '병원 방문 권유', '진료 받으세요', '전문의 상담' 등 일반 의학 조언은 절대 추가하지 말 것"""
+- '병원 방문 권유', '진료 받으세요', '전문의 상담' 등 일반 의학 조언은 절대 추가하지 말 것
+- 질병관리청 콜센터니까 "관련된 자세한 사항은 질병관리청에 문의하시면 됩니다." 같은 말은 하지 마세요."""
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────
@@ -81,7 +85,7 @@ def _make_source(c: dict) -> dict:
     }
 
 
-async def _call_llm(system: str, user: str, max_tokens: int = 200) -> dict:
+async def _call_llm(system: str, user: str, max_tokens: int = 300) -> dict:
     resp = await _get_client().chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -103,26 +107,40 @@ async def generate_card(
     oos_reason: str | None,
     disease_name: str | None,
     retrieval: dict,
+    category: str | None = None,
 ) -> dict:
     """
-    retrieve_all() 결과 → ai_guidance dict (RTL-UI-001)
+    retrieve_all() 결과 → ai_guidance dict
 
     파라미터:
       query        — STEP 1 정제 쿼리
       is_oos       — STEP 1 출력
-      oos_type     — "action_required" | "unrelated" | None
+      oos_type     — "action_required" | "realtime_local" | "unrelated" | None
       oos_reason   — OOS 사유 (is_oos=true 시)
       disease_name — STEP 1 출력, nullable
       retrieval    — retrieve_all() 반환값
+      category     — llm_session 매핑 카테고리 (api_pending 분기용)
 
     반환 (status별):
-      success:   {status, query, disease_name, answer, sources, [emergency]}
-      oos:       {status, oos_type, oos_reason, [emergency]}
-      no_result: {status, query, [emergency]}
+      success:     {status, query, disease_name, intent, answer, sources, [emergency]}
+      api_pending: {status, category, query, [emergency]}
+      oos:         {status, oos_type, oos_reason, [emergency]}
+      no_result:   {status, query, [emergency]}
     """
     is_emergency = _is_emergency(query)
 
-    # ── OOS 처리 (2-A 미실행) ──────────────────────────────────
+    # ── API 예정 카테고리 처리 ─────────────────────────────────
+    if category in API_PENDING_CATEGORIES:
+        card = {
+            "status":   "api_pending",
+            "category": category,
+            "query":    query,
+        }
+        if is_emergency:
+            card["emergency"] = True
+        return card
+
+    # ── OOS 처리 ──────────────────────────────────────────────
     if is_oos:
         card = {
             "status":     "oos",
@@ -133,7 +151,7 @@ async def generate_card(
             card["emergency"] = True
         return card
 
-    # ── 2-A 결과 확인 (threshold는 retrieve_all에서 처리됨) ──────
+    # ── 2-A 결과 확인 ──────────────────────────────────────────
     step2a = retrieval.get("step2a", [])
 
     if not step2a:
@@ -145,24 +163,24 @@ async def generate_card(
             card["emergency"] = True
         return card
 
-    # ── LLM 카드 생성 (2-A 상위 5개 → 상위 3개 청크 사용) ────────────────
-    top_chunks = step2a[:3]
+    # ── LLM 카드 생성 ──────────────────────────────────────────
+    top_chunks = step2a[:5]
     chunks_text = "\n\n".join(
-        f"[{_chunk_label(c)}]\n{c.get('chunk_text', '')[:800]}"   # 500→800 chars
+        f"[{_chunk_label(c)}]\n{c.get('chunk_text', '')[:500]}"
         for c in top_chunks
     )
     user_msg = f"고객 문의: {query}\n\n[문서]\n{chunks_text}"
-    llm = await _call_llm(RAG_SYSTEM, user_msg, max_tokens=300)   # 200→300 tokens
+    llm = await _call_llm(RAG_SYSTEM, user_msg)
 
     FALLBACK = "관련 지침에서 명확한 내용을 찾지 못했습니다."
     raw_answer = (llm.get("answer") or "").strip()
-    # 빈 답변 또는 fallback 문구 그 자체일 때만 fallback 처리
     answer = raw_answer if raw_answer and raw_answer != FALLBACK else FALLBACK
 
     card = {
         "status":       "success",
         "query":        query,
         "disease_name": disease_name,
+        "intent":       llm.get("intent", ""),
         "answer":       answer,
         "sources":      [_make_source(c) for c in top_chunks],
     }

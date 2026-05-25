@@ -3,7 +3,7 @@
 call_id → CallSession (conversation_history, ai_guidance 캐시, LLMSession)
 """
 from dataclasses import dataclass, field
-from app.services.pipeline.llm_session import CallSession as LLMSession
+from app.services.pipeline.llm_session import LLMSession
 
 
 @dataclass
