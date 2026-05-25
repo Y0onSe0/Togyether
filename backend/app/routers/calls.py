@@ -32,9 +32,10 @@ async def end_call(
     agent_id: int = Depends(get_current_agent),
     conn: asyncpg.Connection = Depends(get_conn),
 ):
-    # 세션 메모리에서 conversation_history 가져오기
+    # 세션 메모리에서 conversation_history, ai_guidance 가져오기
     session = session_store.get(call_id)
-    history = session.conversation_history if session else []
+    history    = session.conversation_history if session else []
+    ai_guidance = session.ai_guidance if session else None
 
     row = await conn.fetchrow(
         """
@@ -52,6 +53,22 @@ async def end_call(
     )
     if not row:
         raise HTTPException(status_code=404, detail="통화를 찾을 수 없습니다.")
+
+    # ai_guidance를 acw_cards에 미리 저장
+    # (initACW 시점엔 세션이 이미 닫혀 있으므로 DB에서 읽어야 함)
+    if ai_guidance:
+        await conn.execute(
+            """
+            INSERT INTO acw_cards (call_id, agent_id, source, ai_guidance, acw_started_at)
+            VALUES ($1, $2, 'system', $3::jsonb, NOW())
+            ON CONFLICT (call_id) DO UPDATE
+              SET ai_guidance = EXCLUDED.ai_guidance
+            """,
+            call_id,
+            agent_id,
+            json.dumps(ai_guidance, ensure_ascii=False),
+        )
+
     return CallEndResponse(**dict(row))
 
 
@@ -63,8 +80,12 @@ async def get_call(
 ):
     row = await conn.fetchrow(
         """
-        SELECT call_id, agent_id, status, started_at, conversation_history
-        FROM calls WHERE call_id = $1 AND agent_id = $2
+        SELECT c.call_id, c.agent_id, ag.name AS agent_name,
+               c.status, c.started_at, c.ended_at, c.duration_sec,
+               c.conversation_history
+        FROM calls c
+        JOIN agents ag ON c.agent_id = ag.agent_id
+        WHERE c.call_id = $1 AND c.agent_id = $2
         """,
         call_id,
         agent_id,
@@ -72,6 +93,9 @@ async def get_call(
     if not row:
         raise HTTPException(status_code=404, detail="통화를 찾을 수 없습니다.")
     data = dict(row)
-    if data["conversation_history"] is None:
+    ch = data.get("conversation_history")
+    if ch is None:
         data["conversation_history"] = []
+    elif isinstance(ch, str):
+        data["conversation_history"] = json.loads(ch)
     return CallResponse(**data)

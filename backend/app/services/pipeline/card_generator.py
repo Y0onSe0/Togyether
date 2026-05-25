@@ -14,8 +14,8 @@
 """
 
 import json
-import os
 from openai import AsyncOpenAI
+from app.core.config import settings
 
 _client: AsyncOpenAI | None = None
 
@@ -23,7 +23,7 @@ _client: AsyncOpenAI | None = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     return _client
 
 
@@ -53,9 +53,10 @@ RAG_SYSTEM = """당신은 질병관리청 콜센터 상담사 보조 AI입니다
 }
 
 규칙:
-- answer는 반드시 아래 [문서]에 명시된 내용에만 근거할 것
-- [문서]에 없는 수치·날짜·기관명·절차는 절대 생성하지 말 것
-- [문서]에 명확한 답이 없으면 반드시: "관련 지침에서 명확한 내용을 찾지 못했습니다."
+- answer는 [문서]에 명시된 내용을 최우선으로 사용할 것
+- [문서] 내용이 질문에 직접 답하지 않더라도, 관련 정보(잠복기·증상·조치 등)가 있으면 그것을 바탕으로 유용한 정보를 제공할 것
+- [문서]에 전혀 관련 내용이 없을 때만: "관련 지침에서 명확한 내용을 찾지 못했습니다."
+- [문서]에 없는 구체적 수치·날짜·기관명을 새로 만들어내지 말 것 (문서에 있는 수치는 그대로 활용)
 - 말투: 상담사가 고객에게 직접 말하는 구어체 ('~입니다', '~하시면 됩니다')
 - 지침 원문을 그대로 붙여넣지 말고, 핵심만 쉽게 재서술할 것
 - '병원 방문 권유', '진료 받으세요', '전문의 상담' 등 일반 의학 조언은 절대 추가하지 말 것"""
@@ -144,18 +145,19 @@ async def generate_card(
             card["emergency"] = True
         return card
 
-    # ── LLM 카드 생성 (2-A 상위 3개 청크 사용) ────────────────
+    # ── LLM 카드 생성 (2-A 상위 5개 → 상위 3개 청크 사용) ────────────────
     top_chunks = step2a[:3]
     chunks_text = "\n\n".join(
-        f"[{_chunk_label(c)}]\n{c.get('chunk_text', '')[:500]}"
+        f"[{_chunk_label(c)}]\n{c.get('chunk_text', '')[:800]}"   # 500→800 chars
         for c in top_chunks
     )
     user_msg = f"고객 문의: {query}\n\n[문서]\n{chunks_text}"
-    llm = await _call_llm(RAG_SYSTEM, user_msg)
+    llm = await _call_llm(RAG_SYSTEM, user_msg, max_tokens=300)   # 200→300 tokens
 
     FALLBACK = "관련 지침에서 명확한 내용을 찾지 못했습니다."
-    raw_answer = llm.get("answer", FALLBACK)
-    answer = FALLBACK if FALLBACK in raw_answer else raw_answer
+    raw_answer = (llm.get("answer") or "").strip()
+    # 빈 답변 또는 fallback 문구 그 자체일 때만 fallback 처리
+    answer = raw_answer if raw_answer and raw_answer != FALLBACK else FALLBACK
 
     card = {
         "status":       "success",

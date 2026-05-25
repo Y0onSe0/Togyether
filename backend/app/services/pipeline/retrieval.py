@@ -24,10 +24,10 @@ RTL-SRCH-004: 2-C — transfer_agencies 이관기관 검색 (항상 실행)
 
 import asyncio
 import json
-import os
 import numpy as np
 from pathlib import Path
 from openai import AsyncOpenAI
+from app.core.config import settings
 
 # ─────────────────────────────────────────
 # 설정
@@ -49,7 +49,7 @@ _all_meta: list | None = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     return _client
 
 

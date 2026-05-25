@@ -5,13 +5,15 @@ STEP 2: 병렬 pgvector 검색
 2C: transfer_agencies (description_embedding, 항상)
 """
 import asyncio
+import json
 from openai import AsyncOpenAI
 from app.core.config import settings
 from app.core.database import get_pool
 
 _client: AsyncOpenAI | None = None
-SIMILARITY_THRESHOLD = 0.70
-TOP_K = 3
+SIMILARITY_THRESHOLD = 0.40       # knowledge_chunks, acw_cards 임계값 (0.50→0.40 완화)
+TRANSFER_THRESHOLD   = 0.25       # transfer_agencies: 이관기관은 느슨하게 (항상 추천)
+TOP_K = 5                          # 더 많은 청크 가져오기 (LLM에는 상위 3개만 전달)
 
 
 def _get_client() -> AsyncOpenAI:
@@ -42,7 +44,7 @@ async def _search_knowledge(pool, query_vec: list[float], disease_name: str | No
 
     rows = await pool.fetch(
         f"""
-        SELECT chunk_id, document_title, section_title, data_id, chunk_text,
+        SELECT chunk_index AS chunk_id, document_title, section_title, data_id, chunk_text,
                1 - (embedding <=> $1::vector) AS similarity
         FROM knowledge_chunks
         WHERE 1 - (embedding <=> $1::vector) >= $2
@@ -70,12 +72,21 @@ async def _search_acw(pool, query_vec: list[float]) -> list[dict]:
     )
     result = []
     for r in rows:
-        qa = r["qa_summary"] or []
+        qa_raw = r["qa_summary"] or "[]"
+        if isinstance(qa_raw, str):
+            try:
+                qa = json.loads(qa_raw)
+            except Exception:
+                qa = []
+        elif isinstance(qa_raw, list):
+            qa = qa_raw
+        else:
+            qa = []
         result.append({
             "acw_id": r["acw_id"],
             "title": r["title"],
             "similarity": float(r["similarity"]),
-            "qa_summary": qa,
+            "qa_summary": qa,   # [{q: "...", a: "..."}] 형태로 파싱
         })
     return result
 
@@ -91,7 +102,7 @@ async def _search_transfer(pool, query_vec: list[float]) -> list[dict]:
         ORDER BY description_embedding <=> $1::vector
         LIMIT $3
         """,
-        _vec_str(query_vec), SIMILARITY_THRESHOLD, TOP_K,
+        _vec_str(query_vec), TRANSFER_THRESHOLD, TOP_K,
     )
     return [{
         "org_name": r["org_name"],

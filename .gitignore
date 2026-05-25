@@ -40,3 +40,11 @@ Thumbs.db
 backend/check_*.py
 backend/reset_*.py
 backend/db_status.py
+backend/embed_knowledge_chunks.py
+backend/ws_test.py
+
+# DB 디버그 스크립트
+db/scripts/debug_*.py
+
+# 실험적/미완성 파서
+db/scripts/parsers/DATA_001_parse_covid_mineru.py

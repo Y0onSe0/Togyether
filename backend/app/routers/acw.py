@@ -45,8 +45,17 @@ async def acw_init(
     if not call_row:
         raise HTTPException(status_code=404, detail="통화를 찾을 수 없습니다.")
 
-    history = call_row["conversation_history"] or []
-    transcript = _history_to_transcript(history)
+    raw_history = call_row["conversation_history"] or []
+    if isinstance(raw_history, str):
+        try:
+            raw_history = json.loads(raw_history)
+        except Exception:
+            raw_history = []
+    history = raw_history if isinstance(raw_history, list) else []
+    try:
+        transcript = _history_to_transcript(history)
+    except Exception:
+        transcript = None
 
     # acw_cards shell 레코드 upsert
     row = await conn.fetchrow(
@@ -63,14 +72,32 @@ async def acw_init(
         transcript or None,
     )
 
-    # ai_guidance 캐시 조회
+    # ai_guidance 조회: 세션(메모리) → acw_cards(DB) 순으로 fallback
     session = get_session(call_id)
     ai_guidance = None
+
+    # 1차: 세션이 살아있으면 메모리에서 읽기
     if session and session.ai_guidance:
         try:
             ai_guidance = AiGuidance(**session.ai_guidance)
         except Exception:
             pass
+
+    # 2차: 세션이 없으면 DB(acw_cards)에서 읽기 (end_call 시 저장된 값)
+    if ai_guidance is None:
+        guid_row = await conn.fetchrow(
+            "SELECT ai_guidance FROM acw_cards WHERE call_id=$1", call_id
+        )
+        if guid_row and guid_row["ai_guidance"]:
+            try:
+                guid_data = guid_row["ai_guidance"]
+                # asyncpg는 JSONB를 dict로 반환하지만 혹시 str인 경우 대비
+                if isinstance(guid_data, str):
+                    import json as _json
+                    guid_data = _json.loads(guid_data)
+                ai_guidance = AiGuidance(**guid_data)
+            except Exception:
+                pass
 
     return AcwInitResponse(
         acw_id=row["acw_id"],
@@ -112,11 +139,13 @@ async def acw_save(
     qa_json = [item.model_dump() for item in body.qa_summary]
 
     # q_embedding 생성 (실패 시 None)
+    # asyncpg vector 타입은 "[x,y,z,...]" 문자열 형식 필요
     q_embedding = None
     if body.qa_summary:
         try:
             from app.services.acw_service import embed_text
-            q_embedding = await embed_text(body.qa_summary[0].q)
+            vec = await embed_text(body.qa_summary[0].q)
+            q_embedding = "[" + ",".join(map(str, vec)) + "]"
         except Exception:
             pass
 

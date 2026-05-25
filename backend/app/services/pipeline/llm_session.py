@@ -20,10 +20,10 @@ category 자동 매핑 (RTL-LLM-001):
 """
 
 import json
-import os
 import asyncio
 import numpy as np
 from openai import AsyncOpenAI
+from app.core.config import settings
 
 _client: AsyncOpenAI | None = None
 
@@ -34,7 +34,7 @@ DUPLICATE_THRESHOLD = 0.90   # 이 이상 유사하면 중복으로 판단
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     return _client
 
 
@@ -64,13 +64,23 @@ SYSTEM_PROMPT = """당신은 질병관리청 콜센터 상담사를 보조하는
 입력 형식: 각 발화 앞에 [고객] 또는 [상담사] 레이블이 붙습니다.
 
 ## READY 판단 기준
-- [고객]의 질문/요청이 구체적으로 파악되면 ready: true
+- [고객]의 질문/요청이 구체적으로 파악되면 ready: true (카테고리 무관)
 - 아직 파악이 안 됐거나 인사/잡담이면 ready: false
 - [상담사]가 이미 답변한 내용을 고객이 재확인하는 것이면 ready: false
 - 컨텍스트에 "이미 카드로 전달됨" 표시가 있는 질문을 고객이 단순 확인하는 것이면 ready: false
 - "네", "아니요", "그렇습니다", "맞아요" 등 단순 응답만 있는 발화는 ready: false
 - 고객의 발화가 이전 질문의 연속(보충 설명, 단순 동의/부정)이면 ready: false
   (단, 대화 흐름상 새로운 질문/요청이 명확히 추가된 경우는 ready: true)
+
+## 예시 (반드시 참고)
+[고객] 에이즈 감염 경로가 어떻게 되나요? → ready: true, is_oos: false
+[고객] 결핵 전파경로가 어떻게 되나요? → ready: true, is_oos: false
+[고객] 바이러스성 출혈열 증상이 어떻게 되나요? → ready: true, is_oos: false
+[고객] 레지오넬라 잠복기가 얼마나 되나요? → ready: true, is_oos: false
+[고객] 감염병 신고는 어떻게 하나요? → ready: true, is_oos: true, oos_type: action_required
+[고객] 실업급여 어디에 신청하나요? → ready: true, is_oos: true, oos_type: unrelated
+[고객] 안녕하세요 → ready: false
+[고객] 네 → ready: false
 
 ## is_oos 판단 기준 (ready=true 시에만 판단)
 is_oos=false (업무 범위 내):
@@ -155,6 +165,7 @@ class CallSession:
         raw = resp.choices[0].message.content.strip()
         self.messages.append({"role": "assistant", "content": raw})
 
+        print(f"[LLM 원문] {raw}")
         result = json.loads(raw)
         if not result.get("ready"):
             return None
