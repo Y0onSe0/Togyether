@@ -72,35 +72,71 @@ _load_lock: asyncio.Lock | None = None
 # 병명 별칭 테이블 (LLM 출력 → KB disease_name)
 # ─────────────────────────────────────────
 DISEASE_NAME_ALIASES: dict[str, str] = {
-    "HIV/AIDS":        "후천성면역결핍증(AIDS)",
-    "HIV":             "후천성면역결핍증(AIDS)",
-    "에이즈":          "후천성면역결핍증(AIDS)",
-    "코로나":          "코로나바이러스감염증-19",
-    "코로나19":        "코로나바이러스감염증-19",
-    "COVID-19":        "코로나바이러스감염증-19",
-    "메르스":          "중동호흡기증후군(MERS)",
-    "MERS":            "중동호흡기증후군(MERS)",
-    "독감":            "인플루엔자",
-    "에이형 간염":     "A형간염",
-    "A형 간염":        "A형간염",
-    "비형 간염":       "B형간염",
-    "B형 간염":        "B형간염",
-    "씨형 간염":       "C형간염",
-    "C형 간염":        "C형간염",
-    "이형 간염":       "E형간염",
-    "E형 간염":        "E형간염",
-    "CRE":             "카바페넴내성장내세균목(CRE) 감염증",
-    "카바페넴":        "카바페넴내성장내세균목(CRE) 감염증",
-    "VRE":             "반코마이신내성장알균(VRE) 감염증",
-    "VRSA":            "반코마이신내성황색포도알균(VRSA) 감염증",
-    "MRAB":            "다제내성아시네토박터바우마니균(MRAB) 감염증",
-    "볼거리":          "유행성이하선염",
-    "수족구":          "수족구병",
-    "노로":            "노로바이러스 감염증",
-    "노로바이러스":    "노로바이러스 감염증",
-    "살모넬라":        "살모넬라균 감염증",
-    "캄필로박터":      "캄필로박터균 감염증",
-    "루벨라":          "풍진",
+    # HIV/AIDS
+    "HIV/AIDS":                     "후천성면역결핍증(AIDS)",
+    "HIV":                          "후천성면역결핍증(AIDS)",
+    "에이즈":                       "후천성면역결핍증(AIDS)",
+    "에이치아이브이":               "후천성면역결핍증(AIDS)",
+    # 코로나
+    "코로나":                       "코로나바이러스감염증-19",
+    "코로나19":                     "코로나바이러스감염증-19",
+    "코비드":                       "코로나바이러스감염증-19",
+    "COVID-19":                     "코로나바이러스감염증-19",
+    "COVID19":                      "코로나바이러스감염증-19",
+    # MERS
+    "메르스":                       "중동호흡기증후군(MERS)",
+    "MERS":                         "중동호흡기증후군(MERS)",
+    "중동호흡기증후군":             "중동호흡기증후군(MERS)",
+    # 인플루엔자
+    "독감":                         "인플루엔자",
+    # 간염
+    "에이형 간염":                  "A형간염",
+    "에이 형 간염":                 "A형간염",
+    "에이간염":                     "A형간염",
+    "A형 간염":                     "A형간염",
+    "비형 간염":                    "B형간염",
+    "비 형 간염":                   "B형간염",
+    "비간염":                       "B형간염",
+    "B형 간염":                     "B형간염",
+    "씨형 간염":                    "C형간염",
+    "씨 형 간염":                   "C형간염",
+    "씨간염":                       "C형간염",
+    "C형 간염":                     "C형간염",
+    "이형 간염":                    "E형간염",
+    "이 형 간염":                   "E형간염",
+    "E형 간염":                     "E형간염",
+    # CRE
+    "CRE":                          "카바페넴내성장내세균목(CRE) 감염증",
+    "씨알이":                       "카바페넴내성장내세균목(CRE) 감염증",
+    "씨알":                         "카바페넴내성장내세균목(CRE) 감염증",
+    "카바페넴":                     "카바페넴내성장내세균목(CRE) 감염증",
+    "CPE":                          "카바페넴내성장내세균목(CRE) 감염증",
+    # VRE
+    "VRE":                          "반코마이신내성장알균(VRE) 감염증",
+    "브이알이":                     "반코마이신내성장알균(VRE) 감염증",
+    # VRSA
+    "VRSA":                         "반코마이신내성황색포도알균(VRSA) 감염증",
+    "브이에스알에이":               "반코마이신내성황색포도알균(VRSA) 감염증",
+    # MRAB
+    "MRAB":                         "다제내성아시네토박터바우마니균(MRAB) 감염증",
+    "다제내성아시네토박터바우마니균": "다제내성아시네토박터바우마니균(MRAB) 감염증",
+    "엠알에이비":                   "다제내성아시네토박터바우마니균(MRAB) 감염증",
+    # 기타
+    "볼거리":                       "유행성이하선염",
+    "유행성 이하선염":              "유행성이하선염",
+    "수족구":                       "수족구병",
+    "노로":                         "노로바이러스 감염증",
+    "노로바이러스":                 "노로바이러스 감염증",
+    "살모넬라":                     "살모넬라균 감염증",
+    "캄필로박터 장염":              "캄필로박터균 감염증",
+    "캄필로박터":                   "캄필로박터균 감염증",
+    "캄플로박터균":                 "캄필로박터균 감염증",
+    "캄필러박터":                   "캄필로박터균 감염증",
+    "루벨라":                       "풍진",
+    "신종 감염병 증후군":           "신종감염병증후군",
+    "신종 감염병":                  "신종감염병증후군",
+    "신종감염병 증후군":            "신종감염병증후군",
+    "급성 호흡기 감염증":           "급성호흡기감염증",
 }
 
 
@@ -108,6 +144,86 @@ def _normalize_disease_name(disease_name: str | None) -> str | None:
     if not disease_name:
         return disease_name
     return DISEASE_NAME_ALIASES.get(disease_name, disease_name)
+
+
+# ─────────────────────────────────────────
+# 병명 그룹 테이블 (정규화된 병명 → 검색 대상 disease_name 리스트)
+#
+# DB에는 개별 병명 청크 외에 여러 병명을 묶은 "공통 총론" 청크가 있음.
+# 예) "페스트" 질문 → "페스트" 청크 + "두창·페스트·탄저·..." 총론 청크 모두 포함
+# 예) "매독" 질문   → 모든 병기(1기/2기/3기/선천성/잠복) 청크 포함
+# ─────────────────────────────────────────
+DISEASE_GROUP_MAP: dict[str, list[str]] = {
+    # 1급 감염병 공통 총론 그룹
+    "두창":           ["두창", "두창·페스트·탄저·보툴리눔독소증·야토병"],
+    "페스트":         ["페스트", "두창·페스트·탄저·보툴리눔독소증·야토병"],
+    "탄저":           ["탄저", "두창·페스트·탄저·보툴리눔독소증·야토병"],
+    "보툴리눔독소증": ["보툴리눔독소증", "두창·페스트·탄저·보툴리눔독소증·야토병"],
+    "야토병":         ["야토병", "두창·페스트·탄저·보툴리눔독소증·야토병"],
+    # 바이러스성출혈열 그룹
+    "에볼라바이러스병":   ["에볼라바이러스병", "바이러스성출혈열"],
+    "마버그열":           ["마버그열", "바이러스성출혈열"],
+    "라싸열":             ["라싸열", "바이러스성출혈열"],
+    "크리미안콩고출혈열": ["크리미안콩고출혈열", "바이러스성출혈열"],
+    "리프트밸리열":       ["리프트밸리열", "바이러스성출혈열"],
+    "남아메리카출혈열":   ["남아메리카출혈열", "바이러스성출혈열"],
+    "니파바이러스감염증": ["니파바이러스감염증", "바이러스성출혈열"],
+    # 매독 그룹 (병기별 → 공통 매독 포함)
+    "매독(1기)":    ["매독(1기)", "매독"],
+    "매독(2기)":    ["매독(2기)", "매독"],
+    "매독(3기)":    ["매독(3기)", "매독"],
+    "매독(선천성)": ["매독(선천성)", "매독"],
+    "매독(잠복)":   ["매독(잠복)", "매독"],
+    "매독":         ["매독", "매독(1기)", "매독(2기)", "매독(3기)", "매독(선천성)", "매독(잠복)"],
+    # 풍진 그룹
+    "풍진(선천성)": ["풍진(선천성)", "풍진"],
+    "풍진(후천성)": ["풍진(후천성)", "풍진"],
+    "풍진":         ["풍진", "풍진(선천성)", "풍진(후천성)"],
+    # 마이코플라스마 그룹
+    "마이코플라스마균 감염증":      ["마이코플라스마균 감염증", "마이코플라스마 폐렴균 감염증"],
+    "마이코플라스마 폐렴균 감염증": ["마이코플라스마 폐렴균 감염증", "마이코플라스마균 감염증"],
+}
+
+# 병명 필터 적용 최소 청크 수
+# 필터 결과가 이보다 적으면 LLM 오추출로 판단하고 전체 검색으로 폴백
+DISEASE_FILTER_MIN = 3
+
+
+def _get_disease_filter_names(normalized: str) -> list[str]:
+    """정규화된 병명 → 필터 대상 disease_name 리스트 반환 (그룹 확장)"""
+    return DISEASE_GROUP_MAP.get(normalized, [normalized])
+
+
+def _apply_disease_filter(
+    vecs: np.ndarray,
+    meta: list,
+    disease_name: str,
+) -> tuple[np.ndarray, list, bool]:
+    """
+    disease_name 일치 청크만 추출 (그룹 확장 포함).
+    반환: (filtered_vecs, filtered_meta, applied)
+      applied=False → 매칭 부족으로 폴백 (전체 meta/vecs 그대로 반환)
+    """
+    normalized = _normalize_disease_name(disease_name)
+    if not normalized:
+        return vecs, meta, False
+
+    target_names = set(_get_disease_filter_names(normalized))
+    idx_list = [
+        i for i, c in enumerate(meta)
+        if c.get("disease_name", "") in target_names
+    ]
+
+    if len(idx_list) < DISEASE_FILTER_MIN:
+        print(f"[retrieval] disease_filter 폴백: '{normalized}' (그룹={target_names}) "
+              f"매칭 {len(idx_list)}건 < 최소 {DISEASE_FILTER_MIN}건 → 전체 검색")
+        return vecs, meta, False
+
+    print(f"[retrieval] disease_filter 적용: '{normalized}' → {target_names}  "
+          f"{len(idx_list)}건 / 전체 {len(meta)}건")
+    f_meta = [meta[i] for i in idx_list]
+    f_vecs = vecs[idx_list]
+    return f_vecs, f_meta, True
 
 
 def _get_client() -> AsyncOpenAI:
@@ -141,7 +257,8 @@ async def _ensure_chunks_loaded() -> tuple[np.ndarray, list]:
             """
             SELECT chunk_index::text AS chunk_id,
                    data_id, document_title, section_title,
-                   disease_name, knowledge_type, chunk_text,
+                   disease_name, knowledge_type,
+                   clean_content AS chunk_text,
                    embedding::text AS embedding
             FROM knowledge_chunks
             ORDER BY chunk_index
@@ -169,8 +286,8 @@ async def _ensure_chunks_loaded() -> tuple[np.ndarray, list]:
         _all_meta = meta
         _all_vecs = np.array(vecs, dtype=np.float32)
 
-        # BM25 인덱스 동시 빌드
-        corpus = [_tokenize_ko(c["chunk_text"]) for c in meta]
+        # BM25 인덱스 동시 빌드 (clean_content 기준)
+        corpus = [_tokenize_ko(_clean_content(c["chunk_text"])) for c in meta]
         _bm25_index = BM25Okapi(corpus)
         _bm25_meta = meta
 
@@ -194,7 +311,7 @@ def _rerank(query: str, candidates: list[dict], top_k: int) -> list[dict]:
     if not candidates:
         return candidates
     model = _load_reranker()
-    pairs = [(query, c["chunk_text"]) for c in candidates]
+    pairs = [(query, _clean_content(c["chunk_text"])) for c in candidates]
     scores = model.predict(pairs)
     ranked = sorted(zip(scores, candidates), key=lambda x: x[0], reverse=True)
     results = []
@@ -203,6 +320,52 @@ def _rerank(query: str, candidates: list[dict], top_k: int) -> list[dict]:
         c["rerank_score"] = round(float(score), 4)
         results.append(c)
     return results
+
+
+# ─────────────────────────────────────────
+# 텍스트 정제
+# ─────────────────────────────────────────
+def _clean_content(text: str) -> str:
+    """
+    BM25/리랭킹용 텍스트 정제:
+    - 마크다운 테이블 → 셀 텍스트 추출
+    - 마크다운 강조·헤더 기호 제거
+    - 불릿 특수문자 정리
+    - 연속 공백·개행 정규화
+    """
+    if not text:
+        return ""
+
+    # 마크다운 테이블 → 텍스트
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            # 구분선(|---|---| 등) 제거
+            if re.match(r"^\|[\s\-:|]+\|$", stripped):
+                continue
+            cells = [c.strip() for c in stripped[1:-1].split("|")]
+            lines.append(" ".join(c for c in cells if c))
+        else:
+            lines.append(line)
+    text = "\n".join(lines)
+
+    # 마크다운 강조 제거 (**bold**, *italic*, `code`)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*",     r"\1", text)
+    text = re.sub(r"`(.+?)`",        r"\1", text)
+
+    # 마크다운 헤더 기호 제거
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+
+    # 불릿·특수문자 정리
+    text = re.sub(r"[▢◾•·※★☆□■▪▫]", " ", text)
+
+    # 연속 공백·개행 정리
+    text = re.sub(r"[ \t]+",  " ",  text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    return text.strip()
 
 
 # ─────────────────────────────────────────
@@ -254,9 +417,19 @@ def _meta_to_result(c: dict, score: float) -> dict:
 # ─────────────────────────────────────────
 # BM25: 키워드 검색
 # ─────────────────────────────────────────
-def _bm25_search(query: str, k: int) -> list[tuple[int, float]]:
+def _bm25_search(
+    query: str,
+    k: int,
+    meta_subset: list | None = None,
+) -> list[tuple[int, float]]:
     tokens = _tokenize_ko(query)
-    scores = _bm25_index.get_scores(tokens)
+    if meta_subset is not None:
+        # disease filter 적용 시 서브셋으로 BM25 즉석 재빌드 (인덱스 정합성 보장)
+        corpus = [_tokenize_ko(_clean_content(c["chunk_text"])) for c in meta_subset]
+        bm25 = BM25Okapi(corpus)
+        scores = bm25.get_scores(tokens)
+    else:
+        scores = _bm25_index.get_scores(tokens)
     top_idx = np.argsort(scores)[::-1][:k]
     return [(int(i), float(scores[i])) for i in top_idx if scores[i] > 0]
 
@@ -303,21 +476,26 @@ def _search_2a_sync(
     query: str,
     query_vec: np.ndarray,
     top_k: int,
+    disease_name: str | None = None,
 ) -> list[dict]:
     vecs = _all_vecs
     meta = _all_meta
 
+    # ── disease_name 프리필터 ────────────────────────────────────
+    disease_applied = False
+    if disease_name:
+        vecs, meta, disease_applied = _apply_disease_filter(vecs, meta, disease_name)
+
     dense_ranked = _cosine_search(query_vec, vecs, DENSE_TOP)
-    bm25_ranked  = _bm25_search(query, BM25_TOP)
+    # 필터 적용 시 BM25도 같은 서브셋으로 재빌드 (인덱스 정합성)
+    bm25_ranked  = _bm25_search(query, BM25_TOP, meta_subset=meta if disease_applied else None)
 
     rrf_top = RERANK_POOL if (USE_RERANK and _CE_AVAILABLE) else top_k
     rrf_results = _rrf_merge(dense_ranked, bm25_ranked, meta, rrf_top, SIMILARITY_THRESHOLD)
 
+
     if USE_RERANK and _CE_AVAILABLE and rrf_results:
         try:
-            top1_kt = rrf_results[0].get("knowledge_type", "")
-            if top1_kt == "system_manual":
-                return rrf_results[:top_k]
             return _rerank(query, rrf_results, top_k)
         except Exception as e:
             print(f"[Rerank 오류] {e}")
@@ -366,7 +544,7 @@ async def retrieve_all(
 
     loop = asyncio.get_event_loop()
     step2a = await loop.run_in_executor(
-        None, _search_2a_sync, query, query_vec, top_k
+        None, _search_2a_sync, query, query_vec, top_k, disease_name
     )
 
     normalized = _normalize_disease_name(disease_name)
