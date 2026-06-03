@@ -3,10 +3,12 @@
 공공데이터포털: apis.data.go.kr/1790387/EIDAPIService
 
 확인된 오퍼레이션 (Swagger 기준):
-  /Gender   - 성별 발생현황    (searchType, searchYear)
-  /Age      - 연령별 발생현황  (searchType, searchYear)
-  /Region   - 지역별 발생현황  (searchType, searchYear, searchSidoCd)
-  /Disease  - 감염병별 발생현황 (searchType, searchYear, patntType)
+  /Gender       - 성별 발생현황    (searchType, searchYear)
+  /Age          - 연령별 발생현황  (searchType, searchYear)
+  /Region       - 지역별 발생현황  (searchType, searchYear, searchSidoCd)
+  /Disease      - 감염병별 발생현황 (searchType, searchYear, patntType)
+  /PeriodBasic  - 기간별 발생현황   (searchPeriodType[1:연도/2:월/3:주], searchStartYear, searchEndYear)
+  /PeriodRegion - 기간별 감염지역별 (searchPeriodType[1:연도/2:월/3:주], searchStartYear, searchEndYear)
 
 응답 구조: response.body.items.item (JSON, resType=2)
 """
@@ -51,44 +53,63 @@ def _safe_int(v) -> int:
         return 0
 
 
+async def _fetch_page(client: httpx.AsyncClient, url: str, query: dict) -> tuple[list[dict], int]:
+    """단일 페이지 호출 → (items, totalCount)"""
+    resp = await client.get(url, params=query)
+    if resp.status_code != 200:
+        return [], 0
+    body = resp.json()
+    b = body.get("response", {}).get("body", {})
+    total = int(b.get("totalCount") or 0)
+    items = b.get("items", {}).get("item", [])
+    if isinstance(items, dict):
+        items = [items]
+    return (items if isinstance(items, list) else []), total
+
+
 async def _fetch(operation: str, params: dict) -> list[dict]:
-    """EIDAPIService 호출. 실패 시 [] 반환."""
+    """EIDAPIService 호출 (자동 페이지네이션). 실패 시 [] 반환."""
     global _last_api_error
     if not settings.DATA_GO_KR_API_KEY:
         _last_api_error = {"reason": "API 키 미설정"}
         return []
 
     url = f"{_BASE_URL}/{operation}"
-    query = {
+    PAGE_SIZE = 100   # API 최대값
+
+    base_query = {
         "serviceKey": settings.DATA_GO_KR_API_KEY,
-        "resType": "2",       # JSON
-        "pageNo": 1,
-        "numOfRows": 1000,
-        **params,
+        "resType": "2",
+        "numOfRows": PAGE_SIZE,
+        **{k: v for k, v in params.items() if k != "numOfRows"},
     }
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params=query)
-            _last_api_error = {
-                "url": str(resp.url),
-                "status": resp.status_code,
-                "body_preview": resp.text[:400],
-            }
-            if resp.status_code != 200:
-                return []
-            body = resp.json()
+            # 1페이지 호출로 totalCount 확인
+            first_items, total = await _fetch_page(client, url, {**base_query, "pageNo": 1})
+            _last_api_error = {"url": url, "status": 200, "total": total}
 
-            # 표준 응답: response.body.items.item
-            items = (
-                body.get("response", {})
-                    .get("body", {})
-                    .get("items", {})
-                    .get("item", [])
-            )
-            if isinstance(items, dict):
-                items = [items]
-            return items if isinstance(items, list) else []
+            if not first_items:
+                return []
+
+            all_items = list(first_items)
+
+            # 나머지 페이지 병렬 호출
+            if total > PAGE_SIZE:
+                import math
+                pages = range(2, math.ceil(total / PAGE_SIZE) + 1)
+                tasks = [
+                    _fetch_page(client, url, {**base_query, "pageNo": p})
+                    for p in pages
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for r in results:
+                    if not isinstance(r, Exception):
+                        all_items.extend(r[0])
+
+            return all_items
+
     except Exception as e:
         _last_api_error = {"exception": str(e), "url": url}
         return []
@@ -135,54 +156,52 @@ _MOCK_AGE = [
 ]
 
 
-# ── 감염병별 발생현황 TOP 10 ──────────────────────────────────
+# ── 감염병별 발생현황 TOP 10 (이번 달 기준) ──────────────────
 @router.get("/by-disease")
 async def by_disease(
-    year: str = Query("2025", description="조회 연도 (YYYY)"),
-    search_type: str = Query("1", description="1:발생수 / 2:인구10만명당발생률"),
-    patnt_type: str = Query("1", description="1:전체 / 2:환자분류별"),
     agent_id: int = Depends(get_current_agent),
 ):
     """
-    /Disease 오퍼레이션
-    파라미터: searchType, searchYear, patntType
-    응답 필드: year, patntType, icdGroupNm, icdNm, resultVal
+    /PeriodBasic (searchPeriodType=2, 월별) 이번 달 기준 TOP 10
+    응답 필드: period("2026년 05월"), icdGroupNm, icdNm, resultVal
     """
-    cache_key = f"by_disease:{year}:{search_type}:{patnt_type}"
+    now = datetime.now()
+    year_str  = str(now.year)
+    month_str = f"{now.year}년 {now.month:02d}월"
+
+    cache_key = f"by_disease_month:{year_str}:{now.month}"
     if cached := _cache_get(cache_key):
         return cached
 
-    items = await _fetch("Disease", {
-        "searchType": search_type,
-        "searchYear": year,
-        "patntType": patnt_type,
+    items = await _fetch("PeriodBasic", {
+        "searchPeriodType": "2",
+        "searchStartYear": year_str,
+        "searchEndYear":   year_str,
     })
 
     if items:
-        # patntType='계' 행만 집계 (전체 합계)
+        # 이번 달 데이터만 필터
         agg: dict[str, int] = {}
         for it in items:
-            if it.get("patntType") in ("계", None, ""):
+            if it.get("period", "") == month_str:
                 name = it.get("icdNm", "알 수 없음")
-                agg[name] = agg.get(name, 0) + _safe_int(it.get("resultVal"))
+                agg[name] = agg.get(name, 0) + _safe_int(it.get("resultVal", 0))
+
         result = sorted(
-            [{"diseaseName": k, "cnt": v} for k, v in agg.items()],
+            [{"diseaseName": k, "cnt": v} for k, v in agg.items() if v > 0],
             key=lambda x: x["cnt"], reverse=True
         )[:10]
-        if not result:
-            # patntType 필드 없는 경우 전체 합산
-            agg2: dict[str, int] = {}
-            for it in items:
-                name = it.get("icdNm", "알 수 없음")
-                agg2[name] = agg2.get(name, 0) + _safe_int(it.get("resultVal"))
-            result = sorted(
-                [{"diseaseName": k, "cnt": v} for k, v in agg2.items()],
-                key=lambda x: x["cnt"], reverse=True
-            )[:10]
     else:
+        result = []
+
+    if not result:
         result = _MOCK_BY_DISEASE
 
-    data = {"year": year, "items": result, "is_mock": not bool(items)}
+    data = {
+        "period": month_str,
+        "items": result,
+        "is_mock": not bool(items),
+    }
     _cache_set(cache_key, data)
     return data
 
@@ -335,6 +354,144 @@ async def trend_with_calls(
         "trend": trend,
         "is_mock": not bool(settings.DATA_GO_KR_API_KEY),
     }
+    _cache_set(cache_key, data)
+    return data
+
+
+# ── 감염병 조기경보 (전주 대비 Top 4) ───────────────────────────
+_MOCK_WEEKLY_ALERT = [
+    {
+        "disease": "코로나19",
+        "change_pct": 340,
+        "level": "급증",
+        "this_week": 14320,
+        "last_week": 3254,
+        "trend": [2100, 2400, 2800, 3100, 3254, 8200, 14320],
+    },
+    {
+        "disease": "인플루엔자(독감)",
+        "change_pct": 89,
+        "level": "주의",
+        "this_week": 9870,
+        "last_week": 5220,
+        "trend": [4100, 4300, 4500, 4800, 5220, 7600, 9870],
+    },
+    {
+        "disease": "결핵",
+        "change_pct": -5,
+        "level": "정상",
+        "this_week": 2670,
+        "last_week": 2810,
+        "trend": [2900, 2850, 2820, 2810, 2790, 2720, 2670],
+    },
+    {
+        "disease": "식중독",
+        "change_pct": 12,
+        "level": "정상",
+        "this_week": 1340,
+        "last_week": 1196,
+        "trend": [980, 1020, 1100, 1150, 1196, 1260, 1340],
+    },
+]
+
+
+def _get_alert_level(change_pct: float, this_week: int) -> str:
+    """변화율 + 절대 건수 함께 고려"""
+    if change_pct >= 100 and this_week >= 50:  return "급증"
+    if change_pct >= 30  and this_week >= 20:  return "주의"
+    return "정상"
+
+
+@router.get("/weekly-alert/debug")
+async def weekly_alert_debug(agent_id: int = Depends(get_current_agent)):
+    """PeriodBasic 주별 응답 구조 확인용"""
+    year_str = str(datetime.now().year)
+    items = await _fetch("PeriodBasic", {
+        "searchPeriodType": "3",
+        "searchStartYear": year_str,
+        "searchEndYear": year_str,
+    })
+    return {
+        "total": len(items),
+        "sample": items[:3] if items else [],
+        "keys": list(items[0].keys()) if items else [],
+        "last_api_error": _last_api_error,
+    }
+
+
+@router.get("/weekly-alert")
+async def weekly_alert(agent_id: int = Depends(get_current_agent)):
+    """
+    전주 대비 감염병 발생 증감 Top 4 (조기경보용)
+    /PeriodRegion (searchPeriodType=3, 주별) 사용
+    - 이번 주 vs 전주 발생 건수 비교
+    - 실 데이터 없으면 Mock 반환
+    """
+    cache_key = "weekly_alert"
+    if cached := _cache_get(cache_key):
+        return cached
+
+    today = datetime.now()
+    today_str = today.strftime("%Y.%m.%d")
+    year_str = str(today.year)
+
+    items = await _fetch("PeriodBasic", {
+        "searchPeriodType": "3",
+        "searchStartYear": year_str,
+        "searchEndYear": year_str,
+    })
+
+    if items:
+        from collections import defaultdict
+        week_disease: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+
+        for it in items:
+            disease = it.get("icdNm", "")
+            period  = it.get("period", "")        # "2026년 01주"
+            cnt     = _safe_int(it.get("resultVal", 0))
+            if disease and period:
+                week_disease[period][disease] += cnt
+
+        weeks = sorted(week_disease.keys())       # 문자열 정렬 → 주차 순서 보장
+        if len(weeks) >= 2:
+            this_week = week_disease[weeks[-1]]
+            last_week = week_disease[weeks[-2]]
+
+            # 이번 주 최소 10건 이상인 질병만 대상
+            top_diseases = sorted(
+                [d for d in this_week if this_week[d] >= 10],
+                key=lambda d: this_week[d], reverse=True
+            )[:10]
+
+            result_items = []
+            for disease in top_diseases:
+                this = this_week.get(disease, 0)
+                last = last_week.get(disease, 0)
+                if last == 0:
+                    change = 0.0   # 전주 0건이면 변화율 미산정
+                else:
+                    change = round((this - last) / last * 100, 1)
+
+                trend = [week_disease[w].get(disease, 0) for w in weeks[-7:]]
+
+                result_items.append({
+                    "disease":    disease,
+                    "change_pct": change,
+                    "level":      _get_alert_level(change, this),
+                    "this_week":  this,
+                    "last_week":  last,
+                    "trend":      trend,
+                })
+
+            # 이번 주 건수 기준 Top 4
+            result_items = sorted(result_items, key=lambda x: x["this_week"], reverse=True)[:4]
+
+            data = {"date": today_str, "items": result_items, "is_mock": False}
+            _cache_set(cache_key, data)
+            return data
+
+    # API 실패 or 데이터 부족 → Mock 반환
+    data = {"date": today_str, "items": _MOCK_WEEKLY_ALERT, "is_mock": True}
     _cache_set(cache_key, data)
     return data
 

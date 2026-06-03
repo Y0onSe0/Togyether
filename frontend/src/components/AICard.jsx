@@ -63,7 +63,7 @@ const OosRealtimeLocal = ({ query }) => (
     <div className="space-y-2">
       <p className="font-medium text-gray-500 text-[12px] uppercase tracking-wide">관련 바로가기</p>
       {[
-        { label: '선별진료소 찾기', url: 'https://www.hira.or.kr/rd/hosp/getHospList.do', desc: '건강보험심사평가원' },
+        { label: '동네 진료소 찾기', url: 'https://www.hira.or.kr/ra/hosp/getHealthMap.do?tabgbn=03&WT.ac=HIRA%EA%B1%B4%EA%B0%95%EC%A7%80%EB%8F%84%EB%B0%94%EB%A1%9C%EA%B0%80%EA%B8%B0', desc: '건강보험심사평가원 건강지도' },
         { label: '질병관리청 감염병 현황', url: 'https://www.kdca.go.kr', desc: 'kdca.go.kr' },
         { label: '공공보건포털', url: 'https://www.g-health.kr', desc: '보건소·예방접종 기관 검색' },
       ].map(({ label, url, desc }) => (

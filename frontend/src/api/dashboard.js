@@ -5,11 +5,9 @@ export const getDashboard = async () => {
   return response.data;
 };
 
-// 감염병별 발생현황 TOP 10
-export const getDiseaseByDisease = async (year = '2025', searchType = '1', patntType = '1') => {
-  const response = await api.get('/api/disease-stats/by-disease', {
-    params: { year, search_type: searchType, patnt_type: patntType },
-  });
+// 감염병별 발생현황 TOP 10 (이번 달 기준)
+export const getDiseaseByDisease = async () => {
+  const response = await api.get('/api/disease-stats/by-disease');
   return response.data;
 };
 
@@ -34,5 +32,11 @@ export const getDiseaseByAge = async (year = '2025') => {
   const response = await api.get('/api/disease-stats/by-age', {
     params: { year },
   });
+  return response.data;
+};
+
+// 전주 대비 감염병 조기경보 Top 4
+export const getWeeklyAlert = async () => {
+  const response = await api.get('/api/disease-stats/weekly-alert');
   return response.data;
 };

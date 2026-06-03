@@ -12,6 +12,7 @@ import {
   getDiseaseTrendWithCalls,
   getDiseaseByGender,
   getDiseaseByAge,
+  getWeeklyAlert,
 } from '../api/dashboard';
 
 const MetricCard = ({ title, value, subtitle, icon, color = 'blue' }) => {
@@ -57,6 +58,76 @@ const DualAxisTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ── 감염병 조기경보 컴포넌트 ─────────────────────────────────────────
+const LEVEL_STYLE = {
+  급증: { badge: 'bg-red-500 text-white',   card: 'bg-red-50 border-red-100',   text: 'text-red-500',   bar: '#EF4444' },
+  주의: { badge: 'bg-amber-400 text-white', card: 'bg-amber-50 border-amber-100', text: 'text-amber-500', bar: '#F59E0B' },
+  정상: { badge: 'bg-green-500 text-white', card: 'bg-green-50 border-green-100', text: 'text-green-500', bar: '#22C55E' },
+};
+
+const MiniBar = ({ trend, color }) => {
+  const max = Math.max(...trend);
+  return (
+    <div className="flex items-end gap-0.5 h-8">
+      {trend.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-sm opacity-80"
+          style={{ height: `${(v / max) * 100}%`, backgroundColor: color, minHeight: 3 }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const DiseaseAlertBanner = () => {
+  const [alertData, setAlertData] = useState(null);
+
+  useEffect(() => {
+    getWeeklyAlert().then(setAlertData).catch(console.error);
+  }, []);
+
+  if (!alertData) return null;
+
+  return (
+    <div className="mb-5 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <p className="text-[15px] font-semibold text-gray-800">감염병 조기경보</p>
+        </div>
+        <div className="flex items-center gap-2 text-[12px] text-gray-400">
+          <span>오늘 기준 ({alertData.date})</span>
+          <span className="px-2 py-0.5 bg-gray-100 rounded-full">자동 집계</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        {alertData.items.map((item) => {
+          const style = LEVEL_STYLE[item.level] ?? LEVEL_STYLE['정상'];
+          const isUp = item.change_pct >= 0;
+          return (
+            <div key={item.disease} className={`rounded-xl border p-3 space-y-2 ${style.card}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold text-gray-700 truncate">{item.disease}</p>
+                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ml-1 ${style.badge}`}>
+                  {item.level}
+                </span>
+              </div>
+              <p className={`text-2xl font-bold ${style.text}`}>
+                {isUp ? '↑' : '↓'} {Math.abs(item.change_pct)}%
+              </p>
+              <MiniBar trend={item.trend} color={style.bar} />
+              <p className="text-[11px] text-gray-400">전주 대비</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('my');
   const [data, setData] = useState(null);
@@ -89,10 +160,10 @@ const Dashboard = () => {
     const fetchDisease = async () => {
       setDiseaseLoading(true);
       try {
-        const year = '2025';   // 공공데이터 API 기준 연도
+        const year = String(new Date().getFullYear());
 
         const [byDisease, trend, byGender, byAge] = await Promise.all([
-          getDiseaseByDisease(year),
+          getDiseaseByDisease(),          // 이번 달 기준 (파라미터 불필요)
           getDiseaseTrendWithCalls(7),
           getDiseaseByGender(year),
           getDiseaseByAge(year),
@@ -174,6 +245,9 @@ const Dashboard = () => {
 
       <div className="pt-[52px] pl-[7%] min-w-[64px]">
         <div className="p-6">
+          {/* 감염병 조기경보 */}
+          <DiseaseAlertBanner />
+
           {/* 알림 배너 */}
           {bannerVisible && (
             <div className="mb-5 bg-blue-600 text-white rounded-xl px-5 py-3 flex items-center justify-between shadow">
