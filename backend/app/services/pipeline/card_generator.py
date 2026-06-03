@@ -1,9 +1,9 @@
 """
-카드 생성기 v5 — retrieve_all() 결과 → ai_guidance dict
+카드 생성기 v6 — retrieve_all() 결과 → ai_guidance dict
 
-변경사항 (v5):
-- 카드 생성 시에, 유사도 0.6 이하면 '지침 찾지 못 했습니다.'반환하게 변경"""
-
+변경사항 (v6):
+- 유사도 임계값 수정
+"""
 import json
 from openai import AsyncOpenAI
 from app.core.config import settings
@@ -153,9 +153,10 @@ async def generate_card(
             card["emergency"] = True
         return card
 
-    # ── 유사도 임계값 체크 (top-1 similarity ≤ 0.6 → no_result) ──
+    # ── 유사도 임계값 체크 (top-5 중 최대 similarity ≤ 0.5 → no_result) ──
+    # step2a는 RRF 점수 기준 정렬 → top-1이 BM25에 의해 낮은 유사도일 수 있음
     SIMILARITY_THRESHOLD = 0.5
-    top_sim = step2a[0].get("similarity", 0.0)
+    top_sim = max((c.get("similarity", 0.0) for c in step2a[:5]), default=0.0)
     if top_sim <= SIMILARITY_THRESHOLD:
         card = {
             "status":  "no_result",
