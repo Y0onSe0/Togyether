@@ -1,18 +1,8 @@
 """
-카드 생성기 v4 — retrieve_all() 결과 → ai_guidance dict
+카드 생성기 v5 — retrieve_all() 결과 → ai_guidance dict
 
-변경사항 (v4):
-  - category 파라미터 추가
-  - api_pending 분기 추가 (예방접종/통계/해외검역 → API 연동 예정)
-  - intent 필드 추가 (고객 의도 10자 이내 명사구)
-  - 출력 status: success | api_pending | oos | no_result
-
-출력 (ai_guidance 캐시 구조):
-  success:     {status, query, disease_name, intent, answer, sources[{chunk_id, document_title, section_title, data_id, chunk_text}]}
-  api_pending: {status, category, query}
-  oos:         {status, oos_type, oos_reason}
-  no_result:   {status, query}
-"""
+변경사항 (v5):
+- 카드 생성 시에, 유사도 0.6 이하면 '지침 찾지 못 했습니다.'반환하게 변경"""
 
 import json
 from openai import AsyncOpenAI
@@ -158,6 +148,19 @@ async def generate_card(
         card = {
             "status": "no_result",
             "query":  query,
+        }
+        if is_emergency:
+            card["emergency"] = True
+        return card
+
+    # ── 유사도 임계값 체크 (top-1 similarity ≤ 0.6 → no_result) ──
+    SIMILARITY_THRESHOLD = 0.5
+    top_sim = step2a[0].get("similarity", 0.0)
+    if top_sim <= SIMILARITY_THRESHOLD:
+        card = {
+            "status":  "no_result",
+            "query":   query,
+            "message": "관련 지침을 찾지 못했습니다.",
         }
         if is_emergency:
             card["emergency"] = True
