@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 480
     HUGGINGFACE_TOKEN: str = ""
-    DATA_GO_KR_API_KEY: str = ""  # 공공데이터포털 인증키 — .env 에만 설정
+    DATA_GO_KR_API_KEY: str = ""
+    QUARANTINE_API_URL: str = "https://apis.data.go.kr/1790387/QuarantineRegion"
     DEEPGRAM_API_KEY: str = ""
 
 

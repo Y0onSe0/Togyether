@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import get_pool, close_pool
-from app.routers import auth, agents, calls, acw, dashboard, categories, ws, disease_stats, stt
+from app.routers import auth, agents, calls, acw, dashboard, categories, ws, disease_stats, stt, quarantine, vaccine
 
 
 @asynccontextmanager
@@ -40,6 +40,8 @@ app.include_router(categories.router)
 app.include_router(ws.router)
 app.include_router(disease_stats.router)
 app.include_router(stt.router)
+app.include_router(quarantine.router)
+app.include_router(vaccine.router)
 
 
 @app.get("/")

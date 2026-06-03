@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import SourceCarousel from './SourceCarousel';
 import SimilarCasesCard from './SimilarCasesCard';
 import TransferCard from './TransferCard';
@@ -126,32 +127,133 @@ const OosTransfer = ({ query }) => (
   </div>
 );
 
-// ── api_pending: 예방접종 링크 안내 카드 ─────────────────────────────
-const ApiPendingCard = ({ query, category }) => {
-  const LINKS = {
-    '예방접종': [
-      { label: '예방접종도우미', url: 'https://nip.kdca.go.kr' },
-      { label: '이상반응 신고',  url: 'https://nip.kdca.go.kr/irhp/' },
-    ],
-    '감염병 통계·현황': [
-      { label: '질병관리청 감염병 현황', url: 'https://www.kdca.go.kr/npt/biz/npp/portal/nppPblctDtaView.do' },
-    ],
-    '해외/검역 정보 문의': [
-      { label: '해외감염병 NOW',   url: 'https://해외감염병now.kr' },
-      { label: '검역정보 포털',    url: 'https://quarantine.kdca.go.kr' },
-    ],
-  };
+// ── 검역 정보 카드 (API 연동) ─────────────────────────────────────────
+const MOCK_QUARANTINE = {
+  success: true,
+  country: "베트남",
+  data: [
+    { disease: "콜레라",  start_date: "2024-09-02", end_date: "" },
+    { disease: "뎅기열",  start_date: "2024-03-15", end_date: "" },
+    { disease: "지카바이러스", start_date: "2023-11-01", end_date: "" },
+  ],
+};
 
-  const ICONS = { '예방접종': '💉', '감염병 통계·현황': '📊', '해외/검역 정보 문의': '✈️' };
+const QuarantineCard = ({ query }) => {
+  const [state, setState] = useState('loading');
+  const [data, setData]   = useState(null);
 
-  const links = LINKS[category] ?? LINKS['예방접종'];
-  const icon  = ICONS[category] ?? '💉';
+  useEffect(() => {
+    if (!query) return;
+    setState('loading');
+    fetch(`/api/quarantine/search?query=${encodeURIComponent(query)}`)
+      .then(r => r.json())
+      .then(json => { setData(json); setState(json.matched === false ? 'no_match' : 'success'); })
+      .catch(() => setState('error'));
+  }, [query]);
+
+  return (
+    <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">✈️</span>
+        <p className="text-[15px] font-semibold text-teal-800">해외/검역 정보</p>
+      </div>
+
+      {query && (
+        <p className="text-[13px] text-gray-600 bg-white rounded-lg px-3 py-2 border border-teal-100">
+          "{query}"
+        </p>
+      )}
+
+      {state === 'loading' && (
+        <div className="flex items-center gap-2 py-2">
+          <div className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+          <span className="text-[13px] text-gray-500">검역 정보 조회 중...</span>
+        </div>
+      )}
+
+      {state === 'success' && data?.country && (
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-teal-700">
+            {data.country} 검역관리 감염병
+          </p>
+          {data.data?.length > 0 ? (
+            <div className="space-y-1.5">
+              {data.data.map((item, i) => (
+                <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-teal-100">
+                  <span className="text-[14px] font-medium text-gray-800">⚠️ {item.disease}</span>
+                  <span className="text-[12px] text-gray-400">{item.start_date} ~</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[14px] text-gray-500">현재 {data.country}에 대한 검역관리 지정 없음</p>
+          )}
+        </div>
+      )}
+
+      {state === 'success' && data?.icd && (
+        <div className="space-y-2">
+          {data.data?.length > 0 ? (
+            data.data.slice(0, 3).map((item, i) => (
+              <div key={i} className="bg-white rounded-lg px-3 py-2 border border-teal-100">
+                <p className="text-[13px] font-medium text-gray-700">{item.group_name}</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">
+                  감시기간 {item.watch_days}일 · {item.nations.slice(0, 5).join(', ')}
+                  {item.nations.length > 5 ? ` 외 ${item.nations.length - 5}개국` : ''}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-[14px] text-gray-500">해당 감염병 검역관리지역 없음</p>
+          )}
+        </div>
+      )}
+
+      {(state === 'no_match' || state === 'error') && (
+        <p className="text-[14px] text-gray-600">
+          {data?.message ?? '검역 정보를 찾지 못했습니다. 아래 사이트에서 확인해 주세요.'}
+        </p>
+      )}
+
+      {/* 외부 링크 */}
+      <div className="space-y-1.5 pt-1">
+        {[
+          { label: '해외감염병 NOW',  url: 'https://해외감염병now.kr' },
+          { label: '검역정보 포털',   url: 'https://quarantine.kdca.go.kr' },
+        ].map(({ label, url }) => (
+          <a key={url} href={url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-teal-100 hover:border-teal-300 hover:bg-teal-50 transition-colors group">
+            <span className="text-[14px] text-teal-700 font-medium group-hover:underline">🔗 {label}</span>
+            <span className="text-teal-400 text-[11px]">↗</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ── 예방접종 정보 카드 (API + LLM 캐싱) ─────────────────────────────
+const VaccineCard = ({ query }) => {
+  const [state, setState] = useState('loading');
+  const [data, setData]   = useState(null);
+
+  useEffect(() => {
+    if (!query) return;
+    setState('loading');
+    fetch(`/api/vaccine/search?query=${encodeURIComponent(query)}`)
+      .then(r => r.json())
+      .then(json => { setData(json); setState(json.matched === false ? 'no_match' : 'success'); })
+      .catch(() => setState('error'));
+  }, [query]);
 
   return (
     <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <p className="text-[15px] font-semibold text-green-800">{category ?? '예방접종'} 문의</p>
+        <span className="text-lg">💉</span>
+        <p className="text-[15px] font-semibold text-green-800">예방접종 문의</p>
+        {data?.cached && (
+          <span className="ml-auto text-[11px] px-2 py-0.5 bg-green-100 text-green-600 rounded-full">캐시</span>
+        )}
       </div>
 
       {query && (
@@ -160,24 +262,81 @@ const ApiPendingCard = ({ query, category }) => {
         </p>
       )}
 
-      <p className="text-[14px] text-gray-600">
-        아래 공식 사이트에서 최신 정보를 확인해 주세요.
-      </p>
+      {state === 'loading' && (
+        <div className="flex items-center gap-2 py-2">
+          <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+          <span className="text-[13px] text-gray-500">예방접종 정보 조회 중...</span>
+        </div>
+      )}
 
-      <div className="space-y-1.5">
-        {links.map(({ label, url }) => (
-          <a
-            key={url}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-green-100 hover:border-green-300 hover:bg-green-50 transition-colors group"
-          >
+      {state === 'success' && data && (
+        <div className="space-y-2">
+          {data.title && <p className="text-[13px] font-semibold text-green-700">{data.title}</p>}
+          {data.summary && <p className="text-[14px] text-gray-600">{data.summary}</p>}
+          <div className="space-y-1.5">
+            {data.schedule    && <InfoRow icon="📅" label="접종 시기" value={data.schedule} />}
+            {data.target      && <InfoRow icon="👥" label="접종 대상" value={data.target} />}
+            {data.side_effects && <InfoRow icon="⚠️" label="이상반응" value={data.side_effects} />}
+          </div>
+        </div>
+      )}
+
+      {(state === 'no_match' || state === 'error') && (
+        <p className="text-[14px] text-gray-600">
+          {data?.message ?? '접종 정보를 찾지 못했습니다. 예방접종도우미에서 확인해 주세요.'}
+        </p>
+      )}
+
+      <div className="space-y-1.5 pt-1">
+        {[
+          { label: '예방접종도우미', url: 'https://nip.kdca.go.kr' },
+          { label: '이상반응 신고',  url: 'https://nip.kdca.go.kr/irhp/' },
+        ].map(({ label, url }) => (
+          <a key={url} href={url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-green-100 hover:border-green-300 hover:bg-green-50 transition-colors group">
             <span className="text-[14px] text-green-700 font-medium group-hover:underline">🔗 {label}</span>
             <span className="text-green-400 text-[11px]">↗</span>
           </a>
         ))}
       </div>
+    </div>
+  );
+};
+
+const InfoRow = ({ icon, label, value }) => (
+  <div className="flex gap-2 bg-white rounded-lg px-3 py-2 border border-green-100">
+    <span className="text-[13px] flex-shrink-0">{icon}</span>
+    <div className="min-w-0">
+      <span className="text-[11px] text-gray-400 font-medium block">{label}</span>
+      <span className="text-[13px] text-gray-700 leading-snug">{value}</span>
+    </div>
+  </div>
+);
+
+// ── api_pending: 카테고리별 분기 ──────────────────────────────────────
+const ApiPendingCard = ({ query, category }) => {
+  if (category === '해외/검역 정보 문의') return <QuarantineCard query={query} />;
+  if (category === '예방접종')            return <VaccineCard query={query} />;
+
+  // 감염병 통계·현황 → 링크만
+  return (
+    <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">📊</span>
+        <p className="text-[15px] font-semibold text-green-800">{category} 문의</p>
+      </div>
+      {query && (
+        <p className="text-[13px] text-gray-600 bg-white rounded-lg px-3 py-2 border border-green-100">
+          "{query}"
+        </p>
+      )}
+      <p className="text-[14px] text-gray-600">아래 공식 사이트에서 최신 정보를 확인해 주세요.</p>
+      <a href="https://www.kdca.go.kr/npt/biz/npp/portal/nppPblctDtaView.do"
+        target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-green-100 hover:border-green-300 hover:bg-green-50 transition-colors group">
+        <span className="text-[14px] text-green-700 font-medium group-hover:underline">🔗 질병관리청 감염병 현황</span>
+        <span className="text-green-400 text-[11px]">↗</span>
+      </a>
     </div>
   );
 };
