@@ -15,16 +15,18 @@ const getSTTUrl = (callId) => {
 };
 
 export const useSTT = (callId) => {
-  const wsRef        = useRef(null);
-  const audioCtxRef  = useRef(null);
-  const processorRef = useRef(null);
-  const streamRef    = useRef(null);
+  const wsRef          = useRef(null);
+  const audioCtxRef    = useRef(null);
+  const processorRef   = useRef(null);
+  const streamRef      = useRef(null);
+  const isRecordingRef = useRef(false);  // 상태 대신 ref로 즉각 반영
 
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError]             = useState(null);
 
   const start = useCallback(async () => {
-    if (isRecording || !callId) return;
+    if (isRecordingRef.current || !callId) return;
+    isRecordingRef.current = true;
     setError(null);
 
     try {
@@ -79,16 +81,20 @@ export const useSTT = (callId) => {
       console.log('[STT] 녹음 시작 - call_id:', callId);
 
     } catch (err) {
+      isRecordingRef.current = false;
+      setIsRecording(false);
       setError(err.message);
       console.error('[STT 오류]', err);
-      // 실패 시 리소스 정리
       streamRef.current?.getTracks().forEach((t) => t.stop());
       audioCtxRef.current?.close();
       wsRef.current?.close();
     }
-  }, [callId, isRecording]);
+  }, [callId]);
 
   const stop = useCallback(() => {
+    if (!isRecordingRef.current) return;
+    isRecordingRef.current = false;
+
     processorRef.current?.disconnect();
     audioCtxRef.current?.close();
     streamRef.current?.getTracks().forEach((t) => t.stop());

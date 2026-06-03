@@ -140,7 +140,10 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
         #   2C: transfer_agencies DB 검색
         empty_retrieval = {"step2a": [], "step2b": [], "step2c": [], "_disease_filter": None}
 
-        if is_oos:
+        _API_PENDING = {"예방접종", "감염병 통계·현황", "해외/검역 정보 문의"}
+        skip_rag = is_oos or (category in _API_PENDING)
+
+        if skip_rag:
             knowledge_task = asyncio.sleep(0)
         else:
             knowledge_task = retrieve_all(
@@ -154,7 +157,7 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             return_exceptions=True,
         )
 
-        retrieval      = (results[0] if not isinstance(results[0], Exception) else empty_retrieval) if not is_oos else empty_retrieval
+        retrieval      = empty_retrieval if skip_rag else (results[0] if not isinstance(results[0], Exception) else empty_retrieval)
         similar_cases  = results[1] if not isinstance(results[1], Exception) else []
         transfer_suggs = results[2] if not isinstance(results[2], Exception) else []
 

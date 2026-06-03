@@ -62,7 +62,15 @@ const Main = () => {
       } else if (status === 'oos') {
         setAiState({
           status: 'oos',
-          answer: data.answer || data.payload?.answer,
+          oos_type: data.oos_type || data.payload?.oos_type,
+          query:    data.query   || data.payload?.query,
+          answer:   data.answer  || data.payload?.answer,
+        });
+      } else if (status === 'api_pending') {
+        setAiState({
+          status:   'api_pending',
+          category: data.category || data.payload?.category,
+          query:    data.query    || data.payload?.query,
         });
       } else if (status === 'no_result') {
         setAiState({ status: 'no_result' });
