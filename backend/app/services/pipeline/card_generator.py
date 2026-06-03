@@ -105,7 +105,7 @@ async def generate_card(
     파라미터:
       query        — STEP 1 정제 쿼리
       is_oos       — STEP 1 출력
-      oos_type     — "action_required" | "realtime_local" | "unrelated" | None
+      oos_type     — "action_required" | "realtime_local" | "transfer" | "unrelated" | None
       oos_reason   — OOS 사유 (is_oos=true 시)
       disease_name — STEP 1 출력, nullable
       retrieval    — retrieve_all() 반환값

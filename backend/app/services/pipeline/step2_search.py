@@ -102,7 +102,7 @@ async def _search_transfer(pool, query_vec: list[float]) -> list[dict]:
         ORDER BY description_embedding <=> $1::vector
         LIMIT $3
         """,
-        _vec_str(query_vec), TRANSFER_THRESHOLD, TOP_K,
+        _vec_str(query_vec), TRANSFER_THRESHOLD, 1,
     )
     return [{
         "org_name": r["org_name"],

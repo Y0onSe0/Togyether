@@ -150,19 +150,22 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
                 query, is_oos=False, disease_name=disease_name, query_vec=query_vec
             )
 
+        # 유사상담 검색은 is_oos=True일 때만 실행
+        acw_task = _search_acw(pool, vec_list) if is_oos else asyncio.sleep(0)
+
         results = await asyncio.gather(
             knowledge_task,
-            _search_acw(pool, vec_list),
+            acw_task,
             _search_transfer(pool, vec_list),
             return_exceptions=True,
         )
 
         retrieval      = empty_retrieval if skip_rag else (results[0] if not isinstance(results[0], Exception) else empty_retrieval)
-        similar_cases  = results[1] if not isinstance(results[1], Exception) else []
+        similar_cases  = (results[1] if not isinstance(results[1], Exception) else []) if is_oos else []
         transfer_suggs = results[2] if not isinstance(results[2], Exception) else []
 
-        # 유사사례 즉시 push
-        if similar_cases:
+        # 유사사례 즉시 push (is_oos=True일 때만)
+        if similar_cases and is_oos:
             await _broadcast(call_id, json.dumps({
                 "type": "similar_cases",
                 "data": similar_cases,

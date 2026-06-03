@@ -18,6 +18,7 @@ category 매핑:
   is_oos=false, category_type=quarantine    → '해외/검역 정보 문의' (API 예정)
   is_oos=true,  oos_type=action_required    → category=null, 접수처리
   is_oos=true,  oos_type=realtime_local     → category=null, 실시간·지역정보
+  is_oos=true,  oos_type=transfer           → category=null, 타기관 이관
   is_oos=true,  oos_type=unrelated          → category=null, 범위외
 
 RAG 실행 조건: category='감염병'
@@ -271,7 +272,7 @@ class LLMSession:
           {
             "ready": True,
             "is_oos": bool,
-            "oos_type": "action_required"|"realtime_local"|"unrelated"|None,
+            "oos_type": "action_required"|"realtime_local"|"transfer"|"unrelated"|None,
             "oos_reason": str | None,
             "disease_name": str | None,
             "query": str,
