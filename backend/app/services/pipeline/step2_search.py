@@ -34,6 +34,15 @@ TRANSFER_KEYWORD_MAP = [
         "description_summary": "생명이 위급한 응급 상황에서 신속한 응급처치 및 병원 이송. 즉시 119에 신고하세요.",
     },
 
+    # ── 헬프데스크 ────────────────────────────────────────────────────
+    {
+        "keywords": ["헬프데스크", "헬프 데스크", "helpdesk"],
+        "org_name": "질병보건통합관리시스템 헬프데스크",
+        "dept_name": None,
+        "phone": "1522-6339",
+        "description_summary": "질병보건통합관리시스템 로그인 오류, 권한 신청, 감염병 신고 시스템 사용 문의 전용 헬프데스크",
+    },
+
     # ── 감염병 전문 기관 (감염병 쿼리에도 이관카드 표시) ──────────────
     {
         "keywords": ["결핵 입원", "입원 치료", "국립마산", "국립목포"],
@@ -51,10 +60,27 @@ TRANSFER_KEYWORD_MAP = [
     },
     {
         "keywords": ["에이즈", "HIV", "AIDS", "후천성면역결핍"],
-        "org_name": "에이즈상담센터",
-        "dept_name": None,
-        "phone": "02-861-4114",
-        "description_summary": "HIV/AIDS 감염인 및 가족 대상 전문 심리 상담, 의료기관 연계, 복지 서비스 안내",
+        "agencies": [
+            {
+                "org_name": "감염병정책국 에이즈관리과",
+                "dept_name": "에이즈관리과",
+                "phone": "043-719-7330",
+                "description_summary": "에이즈(HIV/AIDS) 및 성매개감염병 관리·예방·홍보 업무. 에이즈 신고, 감염인 관리, 정책 수립 관련 전문 문의",
+            },
+            {
+                "org_name": "에이즈상담센터",
+                "dept_name": None,
+                "phone": "02-861-4114",
+                "description_summary": "HIV/AIDS 감염인 및 가족 대상 전문 심리 상담, 의료기관 연계, 복지 서비스 안내",
+            },
+        ],
+    },
+    {
+        "keywords": ["B형간염", "C형간염", "비형간염", "씨형간염", "B형 간염", "C형 간염", "비형 간염", "씨형 간염"],
+        "org_name": "감염병정책국 감염병관리과",
+        "dept_name": "감염병관리과",
+        "phone": "043-719-7140",
+        "description_summary": "B형·C형 바이러스 간염, 수인성·식품매개감염병 관리 총괄 문의",
     },
     {
         "keywords": ["한센", "한센병"],
@@ -214,6 +240,17 @@ async def _search_transfer(
     # ── ① 키워드 매칭 (모든 카테고리) ────────────────────────────
     for mapping in TRANSFER_KEYWORD_MAP:
         if any(kw in query_text for kw in mapping["keywords"]):
+            # agencies 리스트 형태 (복수 기관)
+            if "agencies" in mapping:
+                return [{
+                    "org_name":            a["org_name"],
+                    "dept_name":           a["dept_name"],
+                    "phone":               a["phone"],
+                    "description_summary": a["description_summary"],
+                    "similarity":          1.0,
+                    "matched_by":          "keyword",
+                } for a in mapping["agencies"]]
+            # 단일 기관 형태
             return [{
                 "org_name":            mapping["org_name"],
                 "dept_name":           mapping["dept_name"],
