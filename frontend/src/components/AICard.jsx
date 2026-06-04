@@ -117,13 +117,7 @@ const OosTransfer = ({ query }) => (
         "{query}"
       </p>
     )}
-    <p className="text-[14px] text-gray-700">담당 기관·부서로 연결이 필요합니다.</p>
-    <div className="text-[14px] text-gray-600 space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="text-purple-500">☎</span>
-        <span>1339 (질병관리청 콜센터)</span>
-      </div>
-    </div>
+    <p className="text-[14px] text-gray-700">담당 기관·부서로 연결이 필요합니다. 아래 추천 기관을 확인하세요.</p>
   </div>
 );
 
@@ -451,10 +445,9 @@ const AICard = ({ aiState, similarCases, transferData }) => {
         <SimilarCasesCard cases={similarCases} />
       )}
 
-      {/* action_required일 때만 이관카드 표시, 나머지는 숨김 */}
-      {(!isOosLike || aiState?.oos_type === 'action_required') &&
-        transferData && transferData.length > 0 && (
-          <TransferCard institutions={transferData} />
+      {/* 키워드 매칭 시 모든 카테고리에서 이관카드 표시 */}
+      {transferData && transferData.length > 0 && (
+        <TransferCard institutions={transferData} />
       )}
     </div>
   );

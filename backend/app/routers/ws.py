@@ -154,7 +154,8 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
         results = await asyncio.gather(
             knowledge_task,
             asyncio.sleep(0),
-            _search_transfer(pool, vec_list),
+            _search_transfer(pool, vec_list, query_text=query,
+                             keyword_only=not (is_oos and oos_type == "transfer")),
             return_exceptions=True,
         )
 
