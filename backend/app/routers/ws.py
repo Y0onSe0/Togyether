@@ -141,7 +141,7 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
         empty_retrieval = {"step2a": [], "step2b": [], "step2c": [], "_disease_filter": None}
 
         _API_PENDING = {"예방접종", "감염병 통계·현황", "해외/검역 정보 문의"}
-        skip_rag = is_oos or (category in _API_PENDING)
+        skip_rag = is_oos or (category in _API_PENDING) or (not disease_name)
 
         if skip_rag:
             knowledge_task = asyncio.sleep(0)
@@ -217,6 +217,7 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
                 "status":   "no_result",
                 "query":    query,
                 "category": category,
+                "message":  card.get("message"),
             }, ensure_ascii=False))
 
     except Exception as e:

@@ -335,8 +335,98 @@ const ApiPendingCard = ({ query, category }) => {
   );
 };
 
+// ── 히스토리 캐러셀 ────────────────────────────────────────────────────
+const STATUS_LABEL = {
+  success:     { text: '답변', color: 'bg-blue-100 text-blue-700' },
+  oos:         { text: 'OOS',  color: 'bg-amber-100 text-amber-700' },
+  api_pending: { text: 'API',  color: 'bg-green-100 text-green-700' },
+  no_result:   { text: '미검색', color: 'bg-gray-100 text-gray-500' },
+};
+
+const PAGE_SIZE = 3;
+
+const HistoryCarousel = ({ history }) => {
+  const [page, setPage]     = useState(0);
+  const [openIdx, setOpenIdx] = useState(null);
+
+  if (!history || history.length === 0) return null;
+
+  const totalPages = Math.ceil(history.length / PAGE_SIZE);
+  const items = history.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  const handlePage = (dir) => {
+    setPage(p => Math.min(Math.max(p + dir, 0), totalPages - 1));
+    setOpenIdx(null);
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[13px] font-semibold text-gray-500">
+          이전 분석 ({history.length}건)
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handlePage(-1)}
+              disabled={page === 0}
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 disabled:opacity-30 text-[16px]"
+            >‹</button>
+            <span className="text-[12px] text-gray-400">{page + 1} / {totalPages}</span>
+            <button
+              onClick={() => handlePage(1)}
+              disabled={page === totalPages - 1}
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 disabled:opacity-30 text-[16px]"
+            >›</button>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        {items.map((item, i) => {
+          const absIdx = page * PAGE_SIZE + i;
+          const label  = STATUS_LABEL[item.status] ?? STATUS_LABEL.no_result;
+          const isOpen = openIdx === absIdx;
+          return (
+            <div key={absIdx} className="border border-gray-100 rounded-lg overflow-hidden">
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                onClick={() => setOpenIdx(isOpen ? null : absIdx)}
+              >
+                <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${label.color}`}>
+                  {label.text}
+                </span>
+                <span className="text-[13px] text-gray-700 truncate flex-1">
+                  {item.query || item.category || '-'}
+                </span>
+                <span className="text-gray-300 text-[11px] flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
+              </button>
+              {isOpen && (
+                <div className="px-3 pb-3 pt-1.5 border-t border-gray-100 bg-gray-50 space-y-1.5">
+                  {item.answer && (
+                    <p className="text-[13px] text-gray-700 leading-relaxed">{item.answer}</p>
+                  )}
+                  {item.message && (
+                    <p className="text-[13px] text-gray-500 italic">{item.message}</p>
+                  )}
+                  {item.status === 'oos' && (
+                    <p className="text-[12px] text-amber-600">{item.oos_type} 유형</p>
+                  )}
+                  {item.references?.length > 0 && (
+                    <p className="text-[12px] text-blue-500">출처 {item.references.length}건</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ── 메인 AICard ───────────────────────────────────────────────────────
-const AICard = ({ aiState, similarCases, transferData }) => {
+const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
   const renderAIContent = () => {
     if (!aiState || aiState.status === 'idle') {
       return (
@@ -385,7 +475,7 @@ const AICard = ({ aiState, similarCases, transferData }) => {
                 d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-[15px] text-gray-500">관련 지침을 찾지 못했습니다.</p>
+            <p className="text-[15px] text-gray-500">{aiState.message || '관련 지침을 찾지 못했습니다.'}</p>
           </div>
           {aiState.category && (
             <div><StatusBadge category={aiState.category} /></div>
@@ -462,6 +552,9 @@ const AICard = ({ aiState, similarCases, transferData }) => {
       {transferData && transferData.length > 0 && (
         <TransferCard institutions={transferData} />
       )}
+
+      {/* 이전 분석 히스토리 */}
+      <HistoryCarousel history={aiHistory} />
     </div>
   );
 };

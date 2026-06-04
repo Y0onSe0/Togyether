@@ -142,6 +142,17 @@ async def generate_card(
             card["emergency"] = True
         return card
 
+    # ── disease_name 없으면 전체 검색 대신 병명 확인 요청 ────────
+    if not disease_name:
+        card = {
+            "status":  "no_result",
+            "query":   query,
+            "message": "고객에게 정확한 감염병명을 확인해 주세요. 병명을 알면 관련 지침을 안내해드릴 수 있습니다.",
+        }
+        if is_emergency:
+            card["emergency"] = True
+        return card
+
     # ── 2-A 결과 확인 ──────────────────────────────────────────
     step2a = retrieval.get("step2a", [])
 

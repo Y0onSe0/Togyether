@@ -39,20 +39,31 @@ const Main = () => {
   const [ending, setEnding] = useState(false);
 
   const [aiState, setAiState] = useState({ status: 'idle' });
+  const [aiHistory, setAiHistory] = useState([]);
+  const aiStateRef = useRef({ status: 'idle' });
   const [similarCases, setSimilarCases] = useState([]);
   const [transferData, setTransferData] = useState([]);
   const [messages, setMessages] = useState([]);
 
   const handleWsMessage = useCallback((data) => {
-    // 백엔드는 { type, ...rest } 형식으로 전송
     const type = data.type || data.event;
 
     if (type === 'ai_update') {
       const status = data.status || data.payload?.status;
+      const pushHistory = (next) => {
+        const cur = aiStateRef.current;
+        if (cur.status !== 'idle' && cur.status !== 'loading') {
+          setAiHistory(h => [cur, ...h].slice(0, 10));
+        }
+        aiStateRef.current = next;
+        setAiState(next);
+      };
+
       if (status === 'loading') {
+        // ref는 건드리지 않음 — 이전 실제 카드 유지
         setAiState({ status: 'loading' });
       } else if (status === 'success') {
-        setAiState({
+        pushHistory({
           status: 'success',
           category: data.category || data.payload?.category,
           query: data.query || data.payload?.query,
@@ -60,23 +71,24 @@ const Main = () => {
           references: data.references || data.payload?.references || [],
         });
       } else if (status === 'oos') {
-        setAiState({
+        pushHistory({
           status: 'oos',
           oos_type: data.oos_type || data.payload?.oos_type,
           query:    data.query   || data.payload?.query,
           answer:   data.answer  || data.payload?.answer,
         });
       } else if (status === 'api_pending') {
-        setAiState({
+        pushHistory({
           status:   'api_pending',
           category: data.category || data.payload?.category,
           query:    data.query    || data.payload?.query,
         });
       } else if (status === 'no_result') {
-        setAiState({
+        pushHistory({
           status:   'no_result',
           category: data.category || data.payload?.category,
           query:    data.query    || data.payload?.query,
+          message:  data.message  || data.payload?.message,
         });
       }
     }
@@ -122,7 +134,9 @@ const Main = () => {
       const id = data.call_id || data.id;
       setCallId(id);
       setCallState('calling');
+      aiStateRef.current = { status: 'idle' };
       setAiState({ status: 'idle' });
+      setAiHistory([]);
       setSimilarCases([]);
       setTransferData([]);
       setMessages([]);
@@ -276,6 +290,7 @@ const Main = () => {
           <div className="w-[43%] p-4 overflow-y-auto border-r border-gray-100">
             <AICard
               aiState={aiState}
+              aiHistory={aiHistory}
               similarCases={similarCases}
               transferData={transferData}
             />
