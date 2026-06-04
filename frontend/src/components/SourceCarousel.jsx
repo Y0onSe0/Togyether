@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const ChunkModal = ({ source, onClose }) => {
-  const title   = source.document_title || source.title   || source.source || '출처 문서';
-  const section = source.section_title  || source.section || '';
-  const content = source.chunk_text     || source.content || '';
+  const label = [
+    source.document_title || source.title || source.source || '출처 문서',
+    source.disease_name,
+    source.section_title || source.section,
+  ].filter(Boolean).join(' > ');
+  const content = source.chunk_text || source.content || '';
 
   return createPortal(
     <div
@@ -24,13 +27,10 @@ const ChunkModal = ({ source, onClose }) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-block w-2 h-2 rounded-full bg-[#1D4ED8] flex-shrink-0" />
-              <p className="text-[15px] font-semibold text-gray-800 leading-snug truncate">
-                {title}
+              <p className="text-[14px] font-semibold text-gray-800 leading-snug">
+                {label}
               </p>
             </div>
-            {section && (
-              <p className="text-[13px] text-blue-500 ml-4 leading-snug">{section}</p>
-            )}
           </div>
           <button
             onClick={onClose}
@@ -77,8 +77,13 @@ const SourceCarousel = ({ references = [] }) => {
   const total = references.length;
   const ref = references[current];
 
-  const title   = ref.document_title || ref.title   || ref.source || '출처 문서';
-  const section = ref.section_title  || ref.section || '';
+  const buildLabel = (ref) => [
+    ref.document_title || ref.title || ref.source || '출처 문서',
+    ref.disease_name,
+    ref.section_title || ref.section,
+  ].filter(Boolean).join(' > ');
+
+  const title = buildLabel(ref);
 
   const handlePageChange = (next) => {
     setCurrent(next);

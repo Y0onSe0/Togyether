@@ -69,6 +69,7 @@ def _make_source(c: dict) -> dict:
     return {
         "chunk_id":       c.get("chunk_id", ""),
         "document_title": c.get("document_title", ""),
+        "disease_name":   c.get("disease_name", ""),
         "section_title":  c.get("section_title", ""),
         "data_id":        c.get("data_id", ""),
         "chunk_text":     c.get("chunk_text", "")[:300],
