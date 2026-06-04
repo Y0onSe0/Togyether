@@ -34,7 +34,7 @@ router = APIRouter(tags=["stt"])
 
 DEEPGRAM_URL = (
     "wss://api.deepgram.com/v1/listen"
-    "?model=nova-2"
+    "?model=nova-3"
     "&language=ko"
     "&diarize=true"
     "&encoding=linear16"
