@@ -12,7 +12,7 @@ from app.core.database import get_pool
 
 _client: AsyncOpenAI | None = None
 SIMILARITY_THRESHOLD = 0.40       # knowledge_chunks, acw_cards 임계값
-TRANSFER_THRESHOLD   = 0.50       # transfer_agencies 임계값 (0.25→0.50 상향)
+TRANSFER_THRESHOLD   = 0.60       # transfer_agencies 임계값 (엄격하게)
 TOP_K = 5
 
 # ── 이관기관 키워드 매핑 ───────────────────────────────────────────
@@ -140,6 +140,18 @@ TRANSFER_KEYWORD_MAP = [
         "description_summary": "의료관련감염병 예방·관리 총괄, 병원감염 관리 지침, 의료기관 감염관리 문의",
     },
     {
+        "keywords": [
+            "예방접종관리과", "예방접종 관리과", "예방접종 정책",
+            "접종 이상반응 신고", "예방접종 이상반응", "국가예방접종",
+            "독감 예방접종", "독감 접종", "독감 백신",
+            "예방접종", "무료접종", "백신 접종", "접종 일정", "접종 대상",
+        ],
+        "org_name": "의료안전예방국 예방접종관리과",
+        "dept_name": "예방접종관리과",
+        "phone": "043-719-8360",
+        "description_summary": "국가예방접종 기획·효과평가·관리, 예방접종 이상반응 신고·보상, 접종 정책 및 일정 관련 전문 문의",
+    },
+    {
         "keywords": ["말라리아", "진드기", "인수공통"],
         "org_name": "감염병정책국 인수공통감염병관리과",
         "dept_name": "인수공통감염병관리과",
@@ -233,6 +245,30 @@ async def _search_acw(pool, query_vec: list[float]) -> list[dict]:
     return result
 
 
+async def _pick_best_agency(pool, query_vec: list[float], agencies: list[dict]) -> dict:
+    """agencies 리스트 중 query와 description_embedding 유사도가 가장 높은 1개 반환"""
+    org_names = [a["org_name"] for a in agencies]
+    try:
+        rows = await pool.fetch(
+            """
+            SELECT org_name,
+                   1 - (description_embedding <=> $1::vector) AS similarity
+            FROM transfer_agencies
+            WHERE org_name = ANY($2::text[])
+              AND description_embedding IS NOT NULL
+            ORDER BY description_embedding <=> $1::vector
+            LIMIT 1
+            """,
+            _vec_str(query_vec), org_names,
+        )
+        if rows:
+            best_name = rows[0]["org_name"]
+            return next((a for a in agencies if a["org_name"] == best_name), agencies[0])
+    except Exception:
+        pass
+    return agencies[0]
+
+
 async def _search_transfer(
     pool, query_vec: list[float], query_text: str = "", keyword_only: bool = False,
 ) -> list[dict]:
@@ -240,16 +276,17 @@ async def _search_transfer(
     # ── ① 키워드 매칭 (모든 카테고리) ────────────────────────────
     for mapping in TRANSFER_KEYWORD_MAP:
         if any(kw in query_text for kw in mapping["keywords"]):
-            # agencies 리스트 형태 (복수 기관)
+            # agencies 리스트 형태 → 유사도로 1개 선택
             if "agencies" in mapping:
+                best = await _pick_best_agency(pool, query_vec, mapping["agencies"])
                 return [{
-                    "org_name":            a["org_name"],
-                    "dept_name":           a["dept_name"],
-                    "phone":               a["phone"],
-                    "description_summary": a["description_summary"],
+                    "org_name":            best["org_name"],
+                    "dept_name":           best["dept_name"],
+                    "phone":               best["phone"],
+                    "description_summary": best["description_summary"],
                     "similarity":          1.0,
                     "matched_by":          "keyword",
-                } for a in mapping["agencies"]]
+                }]
             # 단일 기관 형태
             return [{
                 "org_name":            mapping["org_name"],
@@ -273,12 +310,13 @@ async def _search_transfer(
         WHERE description_embedding IS NOT NULL
           AND 1 - (description_embedding <=> $1::vector) >= $2
         ORDER BY description_embedding <=> $1::vector
-        LIMIT 2
+        LIMIT 1
         """,
         _vec_str(query_vec), TRANSFER_THRESHOLD,
     )
 
     if rows:
+        r = rows[0]
         return [{
             "org_name":            r["org_name"],
             "dept_name":           r["dept_name"],
@@ -286,7 +324,7 @@ async def _search_transfer(
             "description_summary": r["description_summary"],
             "similarity":          float(r["similarity"]),
             "matched_by":          "embedding",
-        } for r in rows]
+        }]
 
     # ── ③ 폴백: 110 (이관 카테고리 전용) ────────────────────────
     return [TRANSFER_FALLBACK]
