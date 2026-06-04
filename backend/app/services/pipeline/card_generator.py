@@ -53,7 +53,10 @@ RAG_SYSTEM = """당신은 질병관리청 콜센터 상담사 보조 AI입니다
 - 말투: 상담사가 고객에게 직접 말하는 구어체 ('~입니다', '~하시면 됩니다')
 - 지침 원문을 그대로 붙여넣지 말고, 핵심만 쉽게 재서술할 것
 - '병원 방문 권유', '진료 받으세요', '전문의 상담' 등 일반 의학 조언은 절대 추가하지 말 것
-- 질병관리청 콜센터니까 "관련된 자세한 사항은 질병관리청에 문의하시면 됩니다." 같은 말은 하지 마세요."""
+- 아래 문구는 절대 사용 금지 (여기가 질병관리청 콜센터이므로 의미 없음):
+  "질병관리청에 문의하시면", "질병관리청으로 문의", "질병관리청 홈페이지 참고",
+  "관련 기관에 문의", "담당 기관에 문의", "자세한 사항은 ~에 문의"
+  위 표현이 나오면 해당 문장을 통째로 삭제하고 핵심 답변만 남길 것"""
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────
@@ -190,6 +193,22 @@ async def generate_card(
 
     FALLBACK = "관련 지침에서 명확한 내용을 찾지 못했습니다."
     raw_answer = (llm.get("answer") or "").strip()
+
+    # 금지 문구 후처리 제거
+    _BANNED = [
+        "질병관리청에 문의", "질병관리청으로 문의", "질병관리청 홈페이지",
+        "관련 기관에 문의", "담당 기관에 문의", "자세한 사항은",
+    ]
+    for banned in _BANNED:
+        if banned in raw_answer:
+            # 해당 문장만 제거 (문장 단위로 분리 후 필터)
+            sentences = [s.strip() for s in raw_answer.replace("。", ".").split(".") if s.strip()]
+            sentences = [s for s in sentences if not any(b in s for b in _BANNED)]
+            raw_answer = ". ".join(sentences).strip()
+            if raw_answer and not raw_answer.endswith("."):
+                raw_answer += "."
+            break
+
     answer = raw_answer if raw_answer and raw_answer != FALLBACK else FALLBACK
 
     card = {
