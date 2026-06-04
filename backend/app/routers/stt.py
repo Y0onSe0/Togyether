@@ -32,7 +32,7 @@ from app.services.pipeline.session import get_session, create_session
 
 router = APIRouter(tags=["stt"])
 
-DEEPGRAM_URL = (
+DEEPGRAM_URL_SINGLE = (
     "wss://api.deepgram.com/v1/listen"
     "?model=nova-3"
     "&language=ko"
@@ -40,6 +40,18 @@ DEEPGRAM_URL = (
     "&encoding=linear16"
     "&sample_rate=16000"
     "&channels=1"
+    "&interim_results=true"
+)
+
+# 듀얼 채널: ch0=상담사(마이크), ch1=고객(VB-Cable/Zoom)
+DEEPGRAM_URL_DUAL = (
+    "wss://api.deepgram.com/v1/listen"
+    "?model=nova-3"
+    "&language=ko"
+    "&encoding=linear16"
+    "&sample_rate=16000"
+    "&channels=2"
+    "&multichannel=true"
     "&interim_results=true"
 )
 
@@ -105,6 +117,7 @@ async def stt_proxy(
     call_id: int,
     websocket: WebSocket,
     token: str = Query(...),
+    mode: str = Query("single"),   # "single" | "dual"
 ):
     # 토큰 검증
     try:
@@ -127,14 +140,27 @@ async def stt_proxy(
 
     last_audio_send_time: dict = {"t": None}  # 마지막 오디오 전송 시각
 
+    dg_url = DEEPGRAM_URL_DUAL if mode == "dual" else DEEPGRAM_URL_SINGLE
+    print(f"[STT] 모드: {mode}")
+
     try:
         async with ws_connect(
-            DEEPGRAM_URL,
+            dg_url,
             extra_headers={"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"},
             open_timeout=10,
         ) as dg_ws:
-            print(f"[STT] Deepgram 연결됨")
+            print(f"[STT] Deepgram 연결됨 ({mode})")
             first_speaker: dict = {"idx": None}
+
+            async def keepalive():
+                """Deepgram 연결 유지 — 10초마다 KeepAlive 전송"""
+                try:
+                    while True:
+                        await asyncio.sleep(10)
+                        if dg_ws.open:
+                            await dg_ws.send(json.dumps({"type": "KeepAlive"}))
+                except Exception:
+                    pass
 
             async def relay_audio():
                 """브라우저 PCM → Deepgram"""
@@ -169,7 +195,6 @@ async def stt_proxy(
                         except json.JSONDecodeError:
                             continue
 
-                        # is_final=true인 결과만 처리
                         if data.get("type") != "Results":
                             continue
                         if not data.get("is_final"):
@@ -187,7 +212,32 @@ async def stt_proxy(
                         words = alternatives[0].get("words", [])
                         timestamp = datetime.now(timezone.utc).isoformat()
 
-                        # 화자 분리: words 단위로 speaker 변경 감지
+                        # ── 듀얼 채널 모드: channel_index로 화자 확정 ──────
+                        if mode == "dual":
+                            ch_idx = data.get("channel_index", [0])
+                            ch = ch_idx[0] if ch_idx else 0
+                            speaker = "상담사" if ch == 0 else "고객"
+                            text = _normalize_numbers(transcript)
+                            if text:
+                                session.conversation_history.append({
+                                    "speaker": speaker, "text": text, "timestamp": timestamp,
+                                })
+                                await _broadcast(call_id, json.dumps({
+                                    "type": "conversation_update",
+                                    "speaker": speaker, "text": text, "timestamp": timestamp,
+                                }, ensure_ascii=False))
+                                print(f"[STT/dual] [{speaker}] {text}")
+                                if speaker == "고객":
+                                    try:
+                                        llm_result = await session.llm_session.on_utterance(text, speaker)
+                                    except Exception as e:
+                                        print(f"[LLM 오류] {e}")
+                                        llm_result = None
+                                    if llm_result:
+                                        await _run_pipeline(call_id, session, llm_result)
+                            continue  # 싱글 채널 로직 스킵
+
+                        # ── 싱글 채널 모드: diarize 기반 화자 분리 ──────────
                         if words:
                             # speaker별로 텍스트 그룹핑
                             utterances = []
@@ -265,7 +315,7 @@ async def stt_proxy(
                 except Exception as e:
                     print(f"[STT relay_result 종료] {e}")
 
-            await asyncio.gather(relay_audio(), relay_result())
+            await asyncio.gather(relay_audio(), relay_result(), keepalive())
 
     except Exception as e:
         print(f"[STT Proxy 오류] {e}")

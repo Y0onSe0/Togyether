@@ -120,7 +120,12 @@ const Main = () => {
 
   const [testText, setTestText] = useState('');
   const { connect, disconnect, sendMessage } = useWebSocket(callId, handleWsMessage);
-  const { isRecording, start: startSTT, stop: stopSTT, error: sttError } = useSTT(callId);
+  const { isRecording, start: startSTT, startDual, stop: stopSTT, error: sttError, devices, loadDevices } = useSTT(callId);
+
+  const [zoomMode, setZoomMode] = useState(false);
+  const [agentDeviceId, setAgentDeviceId]       = useState('');
+  const [customerDeviceId, setCustomerDeviceId] = useState('');
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
 
   useEffect(() => {
     if (callId) {
@@ -162,8 +167,29 @@ const Main = () => {
   };
 
   const handleToggleSTT = () => {
-    if (isRecording) stopSTT();
-    else startSTT();
+    if (isRecording) {
+      stopSTT();
+    } else if (zoomMode) {
+      if (!agentDeviceId || !customerDeviceId) {
+        setShowDeviceSelector(true);
+        loadDevices();
+      } else {
+        startDual(agentDeviceId, customerDeviceId);
+      }
+    } else {
+      startSTT();
+    }
+  };
+
+  const handleDeviceSelectorOpen = async () => {
+    setShowDeviceSelector(true);
+    await loadDevices();
+  };
+
+  const handleDualStart = () => {
+    if (!agentDeviceId || !customerDeviceId) return;
+    setShowDeviceSelector(false);
+    startDual(agentDeviceId, customerDeviceId);
   };
 
   return (
@@ -201,17 +227,45 @@ const Main = () => {
               <Timer active={callState === 'calling'} />
               <span className="text-[13px] text-gray-400">통화 ID: {callId}</span>
 
+              {/* Zoom 모드 토글 */}
+              <button
+                onClick={() => { if (!isRecording) setZoomMode(m => !m); }}
+                title="Zoom(듀얼채널) 모드 전환"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all ${
+                  zoomMode
+                    ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400 ring-offset-1'
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M15 10l4.553-2.069A1 1 0 0121 8.845v6.31a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+                {zoomMode ? 'Zoom ON' : 'Zoom'}
+              </button>
+
+              {/* Zoom 모드일 때 장치 설정 버튼 */}
+              {zoomMode && !isRecording && (
+                <button
+                  onClick={handleDeviceSelectorOpen}
+                  className="text-[12px] px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                  title="오디오 장치 선택"
+                >
+                  ⚙ 장치
+                </button>
+              )}
+
               {/* STT 마이크 버튼 */}
               <button
                 onClick={handleToggleSTT}
-                title={isRecording ? 'STT 중지' : 'STT 시작 (실시간 자막)'}
+                title={isRecording ? 'STT 중지' : zoomMode ? 'Zoom 듀얼채널 STT 시작' : 'STT 시작 (실시간 자막)'}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all ${
                   isRecording
                     ? 'bg-red-100 text-red-600 ring-2 ring-red-400 ring-offset-1'
                     : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`}
               >
-                {/* 마이크 아이콘 */}
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z"
@@ -225,6 +279,65 @@ const Main = () => {
               {/* STT 오류 표시 */}
               {sttError && (
                 <span className="text-[12px] text-red-500">{sttError}</span>
+              )}
+
+              {/* 장치 선택 팝업 */}
+              {showDeviceSelector && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+                  <div className="bg-white rounded-2xl shadow-xl p-6 w-[400px]">
+                    <h3 className="text-[15px] font-bold text-gray-800 mb-1">Zoom 듀얼채널 설정</h3>
+                    <p className="text-[12px] text-gray-500 mb-4">
+                      VB-Cable 설치 후 Zoom 스피커 출력을 VB-Cable로 설정하세요.
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[12px] font-semibold text-gray-600 block mb-1">
+                          상담사 마이크 (ch0)
+                        </label>
+                        <select
+                          value={agentDeviceId}
+                          onChange={e => setAgentDeviceId(e.target.value)}
+                          className="w-full text-[13px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        >
+                          <option value="">-- 선택 --</option>
+                          {devices.map(d => (
+                            <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[12px] font-semibold text-gray-600 block mb-1">
+                          고객 오디오 — VB-Cable / Zoom 출력 (ch1)
+                        </label>
+                        <select
+                          value={customerDeviceId}
+                          onChange={e => setCustomerDeviceId(e.target.value)}
+                          className="w-full text-[13px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        >
+                          <option value="">-- 선택 --</option>
+                          {devices.map(d => (
+                            <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-5">
+                      <button
+                        onClick={handleDualStart}
+                        disabled={!agentDeviceId || !customerDeviceId}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-[13px] font-semibold py-2 rounded-xl transition-colors"
+                      >
+                        자막 시작
+                      </button>
+                      <button
+                        onClick={() => setShowDeviceSelector(false)}
+                        className="px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               <button
