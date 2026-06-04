@@ -387,6 +387,57 @@ async def embed_query(text: str) -> np.ndarray:
 
 
 # ─────────────────────────────────────────
+# 쿼리 확장 (Query Expansion)
+# ─────────────────────────────────────────
+_EXPAND_SYSTEM = """당신은 감염병 지침 문서 검색 전문가입니다.
+주어진 검색 쿼리를 다른 표현으로 재작성하세요.
+
+규칙:
+- 동일한 의미지만 다른 키워드로 표현 (유사어·관련 개념 활용)
+- [병명] + [핵심개념] 명사구 형태 유지
+- 반드시 JSON으로만 반환: {"expanded": "재작성된 쿼리"}
+
+예시:
+  입력: "결핵 격리기간 기준"
+  출력: {"expanded": "결핵환자 전염성 격리해제 조건"}
+
+  입력: "수족구병 신고의무 신고기준"
+  출력: {"expanded": "수족구병 법정감염병 신고대상 의사환자"}
+
+  입력: "후천성면역결핍증 신고의무 신고기준"
+  출력: {"expanded": "에이즈 HIV감염인 감염병 신고 보고"}"""
+
+
+async def expand_query(query: str) -> str:
+    """원본 쿼리 → 확장 쿼리 1개 생성 (LLM)"""
+    try:
+        resp = await _get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": _EXPAND_SYSTEM},
+                {"role": "user",   "content": query},
+            ],
+            temperature=0,
+            max_tokens=60,
+            response_format={"type": "json_object"},
+        )
+        import json as _json
+        return _json.loads(resp.choices[0].message.content).get("expanded", query)
+    except Exception:
+        return query  # 실패 시 원본 반환
+
+
+def _merge_step2a(list1: list[dict], list2: list[dict]) -> list[dict]:
+    """두 검색 결과를 chunk_id 기준으로 병합 (similarity 높은 것 우선, 중복 제거)"""
+    merged: dict[str, dict] = {}
+    for chunk in list1 + list2:
+        cid = chunk.get("chunk_id", "")
+        if cid not in merged or chunk["similarity"] > merged[cid]["similarity"]:
+            merged[cid] = chunk
+    return sorted(merged.values(), key=lambda x: x["similarity"], reverse=True)
+
+
+# ─────────────────────────────────────────
 # Dense: 코사인 유사도 검색
 # ─────────────────────────────────────────
 def _cosine_search(
@@ -514,6 +565,7 @@ async def retrieve_all(
     query_vec: np.ndarray | None = None,
     top_k: int = TOP_K,
     knowledge_type: str | None = None,
+    use_query_expansion: bool = False,
 ) -> dict:
     """
     하이브리드 RAG 검색 (2-A).
@@ -543,9 +595,21 @@ async def retrieve_all(
     await _ensure_chunks_loaded()
 
     loop = asyncio.get_event_loop()
-    step2a = await loop.run_in_executor(
-        None, _search_2a_sync, query, query_vec, top_k, disease_name
-    )
+
+    if use_query_expansion:
+        # 원본 쿼리 + 확장 쿼리 병렬 실행
+        expanded = await expand_query(query)
+        expanded_vec = await embed_query(expanded)
+
+        step2a_orig, step2a_exp = await asyncio.gather(
+            loop.run_in_executor(None, _search_2a_sync, query,    query_vec,    top_k, disease_name),
+            loop.run_in_executor(None, _search_2a_sync, expanded, expanded_vec, top_k, disease_name),
+        )
+        step2a = _merge_step2a(step2a_orig, step2a_exp)[:top_k]
+    else:
+        step2a = await loop.run_in_executor(
+            None, _search_2a_sync, query, query_vec, top_k, disease_name
+        )
 
     normalized = _normalize_disease_name(disease_name)
 

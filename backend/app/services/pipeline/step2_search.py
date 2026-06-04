@@ -208,8 +208,9 @@ async def _search_acw(pool, query_vec: list[float]) -> list[dict]:
 
 
 async def _search_transfer(
-    pool, query_vec: list[float], query_text: str = "", keyword_only: bool = False
+    pool, query_vec: list[float], query_text: str = "", keyword_only: bool = False,
 ) -> list[dict]:
+    # pool은 asyncpg Pool 또는 Connection 모두 허용
     # ── ① 키워드 매칭 (모든 카테고리) ────────────────────────────
     for mapping in TRANSFER_KEYWORD_MAP:
         if any(kw in query_text for kw in mapping["keywords"]):

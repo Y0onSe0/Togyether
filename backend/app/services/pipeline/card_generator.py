@@ -155,7 +155,7 @@ async def generate_card(
 
     # ── 유사도 임계값 체크 (top-5 중 최대 similarity ≤ 0.5 → no_result) ──
     # step2a는 RRF 점수 기준 정렬 → top-1이 BM25에 의해 낮은 유사도일 수 있음
-    SIMILARITY_THRESHOLD = 0.5
+    SIMILARITY_THRESHOLD = 0.45
     top_sim = max((c.get("similarity", 0.0) for c in step2a[:5]), default=0.0)
     if top_sim <= SIMILARITY_THRESHOLD:
         card = {

@@ -378,13 +378,26 @@ const AICard = ({ aiState, similarCases, transferData }) => {
 
     if (aiState.status === 'no_result') {
       return (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-3">
-          <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <p className="text-[15px] text-gray-500">관련 정보를 찾을 수 없습니다.</p>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-[15px] text-gray-500">관련 지침을 찾지 못했습니다.</p>
+          </div>
+          {aiState.category && (
+            <div><StatusBadge category={aiState.category} /></div>
+          )}
+          {aiState.query && (
+            <div>
+              <p className="text-[12px] text-gray-400 font-medium mb-1">인식된 문의</p>
+              <p className="text-[14px] text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-200">
+                {aiState.query}
+              </p>
+            </div>
+          )}
         </div>
       );
     }

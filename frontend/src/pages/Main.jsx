@@ -73,7 +73,11 @@ const Main = () => {
           query:    data.query    || data.payload?.query,
         });
       } else if (status === 'no_result') {
-        setAiState({ status: 'no_result' });
+        setAiState({
+          status:   'no_result',
+          category: data.category || data.payload?.category,
+          query:    data.query    || data.payload?.query,
+        });
       }
     }
 
