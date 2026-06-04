@@ -91,20 +91,11 @@ const SourceCarousel = ({ references = [] }) => {
         출처 ({total}건)
       </p>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-        {/* 문서 제목 + 섹션 */}
-        <p className="text-[14px] font-semibold text-blue-700 leading-snug">{title}</p>
+      <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+        <p className="text-[12px] text-blue-700 font-medium leading-snug truncate">{title}</p>
         {section && (
-          <p className="text-[12px] text-blue-500 mt-0.5 leading-snug">{section}</p>
+          <p className="text-[11px] text-blue-400 mt-0.5 leading-snug truncate">{section}</p>
         )}
-
-        {/* 자세히 보기 버튼 */}
-        <button
-          onClick={() => setModalOpen(true)}
-          className="mt-2 text-[12px] text-blue-500 hover:text-blue-700 underline underline-offset-2 transition-colors"
-        >
-          자세히 보기 →
-        </button>
       </div>
 
       {/* 페이지네이션 */}
