@@ -98,9 +98,6 @@ const SourceCarousel = ({ references = [] }) => {
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
         <p className="text-[12px] text-blue-700 font-medium leading-snug truncate">{title}</p>
-        {section && (
-          <p className="text-[11px] text-blue-400 mt-0.5 leading-snug truncate">{section}</p>
-        )}
       </div>
 
       {/* 페이지네이션 */}
