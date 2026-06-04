@@ -1,10 +1,26 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
+const VIRAL_HEMORRHAGIC_FEVERS = new Set([
+  '에볼라바이러스병', '마버그열', '크리미안콩고출혈열', '리프트밸리열', '니파바이러스감염증',
+]);
+
+const getDocumentTitle2 = (document_title, disease_name) => {
+  if (document_title === '질병관리청 FAQ') return '질병관리청 감염병포털 FAQ';
+  if (document_title !== '질병관리청 법정감염병 정보') return document_title;
+  if (disease_name === '결핵') return '2026 국가결핵관리지침';
+  if (disease_name === '중동호흡기증후군(MERS)') return '제1급감염병 중동호흡기증후군(MERS)·중증급성호흡기증후군(SARS) 대응지침';
+  if (disease_name === '페스트') return '제1급감염병 두창·페스트·탄저·보툴리눔독소증·야토병 대응지침';
+  if (VIRAL_HEMORRHAGIC_FEVERS.has(disease_name)) return '제1급감염병 바이러스성출혈열 대응지침';
+  return '2026 본책_법정감염병 진단검사 통합지침(제4-2판)';
+};
+
 const ChunkModal = ({ source, onClose }) => {
-  const label = [
-    source.document_title || source.title || source.source || '출처 문서',
+  const docTitle = getDocumentTitle2(source.document_title, source.disease_name);
+  const pathLabel = [
+    docTitle || source.title || source.source || '출처 문서',
     source.disease_name,
+    source.chapter,
     source.section_title || source.section,
   ].filter(Boolean).join(' > ');
   const content = source.chunk_text || source.content || '';
@@ -25,11 +41,16 @@ const ChunkModal = ({ source, onClose }) => {
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-gray-100">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#1D4ED8] flex-shrink-0" />
-              <p className="text-[14px] font-semibold text-gray-800 leading-snug">
-                {label}
-              </p>
+            <div className="flex items-start gap-2 mb-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-[#1D4ED8] flex-shrink-0 mt-1.5" />
+              <div>
+                <p className="text-[14px] font-semibold text-gray-800 leading-snug">
+                  {pathLabel}
+                </p>
+                {source.disease_name && (
+                  <p className="text-[12px] text-blue-600 mt-0.5">{source.disease_name}</p>
+                )}
+              </div>
             </div>
           </div>
           <button
@@ -77,13 +98,14 @@ const SourceCarousel = ({ references = [] }) => {
   const total = references.length;
   const ref = references[current];
 
-  const buildLabel = (ref) => [
-    ref.document_title || ref.title || ref.source || '출처 문서',
+  const buildPathLabel = (ref) => [
+    getDocumentTitle2(ref.document_title, ref.disease_name) || ref.title || ref.source || '출처 문서',
     ref.disease_name,
+    ref.chapter,
     ref.section_title || ref.section,
   ].filter(Boolean).join(' > ');
 
-  const title = buildLabel(ref);
+  const title = buildPathLabel(ref);
 
   const handlePageChange = (next) => {
     setCurrent(next);
@@ -96,9 +118,12 @@ const SourceCarousel = ({ references = [] }) => {
         출처 ({total}건)
       </p>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-        <p className="text-[12px] text-blue-700 font-medium leading-snug truncate">{title}</p>
-      </div>
+      <button
+        className="w-full text-left bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 hover:bg-blue-100 transition-colors"
+        onClick={() => setModalOpen(true)}
+      >
+        <p className="text-[12px] text-blue-700 font-medium leading-snug line-clamp-2">{title}</p>
+      </button>
 
       {/* 페이지네이션 */}
       {total > 1 && (

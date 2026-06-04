@@ -256,7 +256,7 @@ async def _ensure_chunks_loaded() -> tuple[np.ndarray, list]:
         rows = await pool.fetch(
             """
             SELECT chunk_index::text AS chunk_id,
-                   data_id, document_title, section_title,
+                   data_id, document_title, chapter, section_title,
                    disease_name, knowledge_type,
                    clean_content AS chunk_text,
                    embedding::text AS embedding
@@ -275,6 +275,7 @@ async def _ensure_chunks_loaded() -> tuple[np.ndarray, list]:
                 "chunk_id":       row["chunk_id"],
                 "data_id":        row["data_id"] or "",
                 "document_title": row["document_title"] or "",
+                "chapter":        row["chapter"] or "",
                 "section_title":  row["section_title"] or "",
                 "disease_name":   row["disease_name"] or "",
                 "knowledge_type": row["knowledge_type"] or "",
