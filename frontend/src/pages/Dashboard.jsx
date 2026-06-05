@@ -184,23 +184,9 @@ const Dashboard = () => {
   const myStats = data?.my_stats || {};
   const allStats = data?.all_stats || {};
 
-  // 샘플 데이터 (API 데이터가 없을 경우 fallback)
-  const majorCategoryData = myStats.major_category_chart || [
-    { name: '감염병', count: 45 },
-    { name: '예방접종', count: 38 },
-    { name: '만성질환', count: 29 },
-    { name: '정신건강', count: 17 },
-    { name: '암', count: 12 },
-    { name: '기타', count: 8 },
-  ];
-
-  const subCategoryData = myStats.sub_category_chart || [
-    { name: '코로나19', count: 22 },
-    { name: '독감', count: 15 },
-    { name: '결핵', count: 8 },
-    { name: '당뇨', count: 12 },
-    { name: '고혈압', count: 10 },
-  ];
+  // 실제 DB 데이터 (없으면 빈 배열)
+  const majorCategoryData = myStats.major_category_chart || [];
+  const subCategoryData   = myStats.sub_category_chart   || [];
 
   const weeklyTrend = myStats.weekly_trend || [
     { day: '월', count: 18 },
@@ -245,8 +231,8 @@ const Dashboard = () => {
 
       <div className="pt-[52px] pl-[7%] min-w-[64px]">
         <div className="p-6">
-          {/* 감염병 조기경보 */}
-          <DiseaseAlertBanner />
+          {/* 감염병 조기경보 — 임시 비활성화 */}
+          {/* <DiseaseAlertBanner /> */}
 
           {/* 알림 배너 */}
           {bannerVisible && (
@@ -366,54 +352,68 @@ const Dashboard = () => {
                     {/* 대분류 Bar Chart */}
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                       <h3 className="text-[15px] font-semibold text-gray-700 mb-4">대분류별 상담 건수</h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={majorCategoryData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                          <YAxis tick={{ fontSize: 13 }} />
-                          <Tooltip contentStyle={{ fontSize: 14 }} />
-                          <Bar dataKey="count" fill="#1E40AF" radius={[4, 4, 0, 0]} name="건수" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      {majorCategoryData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={220}>
+                          <BarChart data={majorCategoryData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                            <YAxis tick={{ fontSize: 13 }} />
+                            <Tooltip contentStyle={{ fontSize: 14 }} />
+                            <Bar dataKey="count" fill="#1E40AF" radius={[4, 4, 0, 0]} name="건수" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex items-center justify-center h-[220px] text-[13px] text-gray-400">이번 달 상담 데이터가 없습니다</div>
+                      )}
                     </div>
 
                     {/* 중분류 Bar Chart */}
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                       <h3 className="text-[15px] font-semibold text-gray-700 mb-4">중분류별 상담 건수</h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={subCategoryData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                          <YAxis tick={{ fontSize: 13 }} />
-                          <Tooltip contentStyle={{ fontSize: 14 }} />
-                          <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="건수" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      {subCategoryData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={220}>
+                          <BarChart data={subCategoryData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                            <YAxis tick={{ fontSize: 13 }} />
+                            <Tooltip contentStyle={{ fontSize: 14 }} />
+                            <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="건수" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex items-center justify-center h-[220px] text-[13px] text-gray-400">이번 달 상담 데이터가 없습니다</div>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-5">
-                    {/* Top 10 키워드 */}
+                    {/* 자주 나온 질문 Top 10 */}
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                      <h3 className="text-[15px] font-semibold text-gray-700 mb-4">Top 10 키워드</h3>
+                      <h3 className="text-[15px] font-semibold text-gray-700 mb-4">자주 나온 질환 Top 10</h3>
                       <div className="space-y-2">
-                        {keywords.slice(0, 10).map((kw, i) => {
+                        {keywords.length > 0 ? keywords.slice(0, 10).map((kw, i) => {
                           const maxCount = keywords[0]?.count || 1;
                           const width = Math.round((kw.count / maxCount) * 100);
                           return (
-                            <div key={i} className="flex items-center gap-2">
-                              <span className="text-[13px] text-gray-400 w-4 text-right flex-shrink-0">{i + 1}</span>
-                              <span className="text-[13px] text-gray-700 w-24 flex-shrink-0 truncate">{kw.keyword || kw.word}</span>
-                              <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                                <div
-                                  className="bg-[#1E40AF] h-1.5 rounded-full transition-all"
-                                  style={{ width: `${width}%` }}
-                                />
+                            <div key={i} className="flex items-start gap-2">
+                              <span className={`text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                i === 0 ? 'bg-[#1E40AF] text-white' :
+                                i === 1 ? 'bg-blue-400 text-white' :
+                                i === 2 ? 'bg-blue-200 text-blue-800' :
+                                'bg-gray-100 text-gray-500'
+                              }`}>{i + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] text-gray-700 leading-tight">{kw.keyword}</p>
+                                <div className="mt-1 bg-gray-100 rounded-full h-1">
+                                  <div className="bg-[#1E40AF] h-1 rounded-full" style={{ width: `${width}%` }} />
+                                </div>
                               </div>
-                              <span className="text-[13px] text-gray-400 w-6 text-right flex-shrink-0">{kw.count}</span>
+                              <span className="text-[12px] text-gray-400 flex-shrink-0">{kw.count}건</span>
                             </div>
                           );
-                        })}
+                        }) : (
+                          <p className="text-[13px] text-gray-400 text-center py-6">이번 달 상담 데이터가 없습니다</p>
+                        )}
                       </div>
                     </div>
 
@@ -585,71 +585,57 @@ const Dashboard = () => {
                             </div>
                           </div>
                         </div>
-                        <ResponsiveContainer width="100%" height={260}>
-                          <ComposedChart
-                            data={diseaseData.trend?.trend || []}
-                            margin={{ top: 10, right: 60, left: 0, bottom: 0 }}
-                          >
-                            <defs>
-                              <linearGradient id="covidGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%"  stopColor="#1E40AF" stopOpacity={0.15} />
-                                <stop offset="95%" stopColor="#1E40AF" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="label" tick={{ fontSize: 13 }} />
-                            {/* 왼쪽 Y축: 확진자 수 */}
-                            <YAxis
-                              yAxisId="left"
-                              orientation="left"
-                              tick={{ fontSize: 12 }}
-                              tickFormatter={(v) => (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-                              label={{ value: '확진자 (명)', angle: -90, position: 'insideLeft', offset: 15, style: { fontSize: 12, fill: '#1E40AF' } }}
-                            />
-                            {/* 오른쪽 Y축: 콜 건수 */}
-                            <YAxis
-                              yAxisId="right"
-                              orientation="right"
-                              tick={{ fontSize: 12 }}
-                              tickFormatter={(v) => (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-                              label={{ value: '콜 건수 (건)', angle: 90, position: 'insideRight', offset: 15, style: { fontSize: 12, fill: '#10B981' } }}
-                            />
-                            <Tooltip content={<DualAxisTooltip />} />
-                            {/* 코로나19 면적 라인 */}
-                            <Area
-                              yAxisId="left"
-                              type="monotone"
-                              dataKey="코로나19"
-                              stroke="#1E40AF"
-                              strokeWidth={2}
-                              fill="url(#covidGrad)"
-                              dot={{ r: 4, fill: '#1E40AF' }}
-                              name="코로나19 확진자"
-                            />
-                            {/* 독감 라인 */}
-                            <Line
-                              yAxisId="left"
-                              type="monotone"
-                              dataKey="독감"
-                              stroke="#F59E0B"
-                              strokeWidth={1.5}
-                              dot={{ r: 3 }}
-                              name="독감 확진자"
-                              strokeDasharray="4 2"
-                            />
-                            {/* 1339 콜 건수 (오른쪽 축) */}
-                            <Line
-                              yAxisId="right"
-                              type="monotone"
-                              dataKey="calls"
-                              stroke="#10B981"
-                              strokeWidth={2.5}
-                              dot={{ r: 5, fill: '#10B981' }}
-                              name="1339 콜 건수"
-                            />
-                            <Legend iconSize={10} wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
-                          </ComposedChart>
-                        </ResponsiveContainer>
+                        {(() => {
+                          const trendData = diseaseData.trend?.trend || [];
+                          const topDiseases = diseaseData.trend?.top_diseases || ['코로나19', '독감'];
+                          const DISEASE_COLORS = ['#1E40AF', '#F59E0B'];
+                          return (
+                            <ResponsiveContainer width="100%" height={260}>
+                              <ComposedChart data={trendData} margin={{ top: 10, right: 60, left: 0, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id="disease0Grad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%"  stopColor={DISEASE_COLORS[0]} stopOpacity={0.15} />
+                                    <stop offset="95%" stopColor={DISEASE_COLORS[0]} stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="label" tick={{ fontSize: 13 }} />
+                                <YAxis yAxisId="left" orientation="left" tick={{ fontSize: 12 }}
+                                  tickFormatter={(v) => (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+                                  label={{ value: '확진자 (명)', angle: -90, position: 'insideLeft', offset: 15, style: { fontSize: 12, fill: DISEASE_COLORS[0] } }}
+                                />
+                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }}
+                                  tickFormatter={(v) => (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+                                  label={{ value: '콜 건수 (건)', angle: 90, position: 'insideRight', offset: 15, style: { fontSize: 12, fill: '#10B981' } }}
+                                />
+                                <Tooltip content={<DualAxisTooltip />} />
+                                {/* top 2 질환 — API에서 동적으로 */}
+                                {topDiseases[0] && (
+                                  <Area yAxisId="left" type="monotone" dataKey={topDiseases[0]}
+                                    stroke={DISEASE_COLORS[0]} strokeWidth={2}
+                                    fill="url(#disease0Grad)"
+                                    dot={{ r: 4, fill: DISEASE_COLORS[0] }}
+                                    name={`${topDiseases[0]} 확진자`}
+                                  />
+                                )}
+                                {topDiseases[1] && (
+                                  <Line yAxisId="left" type="monotone" dataKey={topDiseases[1]}
+                                    stroke={DISEASE_COLORS[1]} strokeWidth={1.5}
+                                    dot={{ r: 3 }} strokeDasharray="4 2"
+                                    name={`${topDiseases[1]} 확진자`}
+                                  />
+                                )}
+                                {/* 1339 콜 건수 */}
+                                <Line yAxisId="right" type="monotone" dataKey="calls"
+                                  stroke="#10B981" strokeWidth={2.5}
+                                  dot={{ r: 5, fill: '#10B981' }}
+                                  name="1339 콜 건수"
+                                />
+                                <Legend iconSize={10} wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
+                              </ComposedChart>
+                            </ResponsiveContainer>
+                          );
+                        })()}
                         <p className="text-[12px] text-gray-400 mt-3 text-center">
                           * 확진자 수: 질병관리청 전수신고 감염병 발생현황 | 콜 건수: 내부 ACW 카드 기준
                         </p>

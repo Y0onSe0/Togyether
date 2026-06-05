@@ -58,14 +58,16 @@ async def get_dashboard(
         agent_id,
     )
 
-    # 내 통계 - 키워드
+    # 내 통계 - 자주 나온 질환명 top 10
     keywords = await conn.fetch(
         """
-        SELECT kw AS keyword, COUNT(*) AS count
-        FROM acw_cards, jsonb_array_elements_text(keywords) AS kw
+        SELECT disease_name AS keyword, COUNT(*) AS count
+        FROM acw_cards
         WHERE agent_id=$1
+          AND disease_name IS NOT NULL
+          AND disease_name != ''
           AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-        GROUP BY kw ORDER BY count DESC LIMIT 10
+        GROUP BY disease_name ORDER BY count DESC LIMIT 10
         """,
         agent_id,
     )

@@ -22,7 +22,7 @@ const Login = () => {
     setLoading(true);
     try {
       await login(form.username, form.password);
-      navigate('/main');
+      navigate('/notice');
     } catch (err) {
       const msg = err.response?.data?.detail || err.response?.data?.message || '입력한 정보가 올바르지 않습니다.';
       setError(msg);

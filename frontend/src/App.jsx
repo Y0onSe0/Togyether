@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import Main from './pages/Main';
 import ACW from './pages/ACW';
 import Dashboard from './pages/Dashboard';
+import Notice from './pages/Notice';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('access_token');
@@ -38,6 +39,14 @@ function App() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/notice"
+          element={
+            <PrivateRoute>
+              <Notice />
             </PrivateRoute>
           }
         />

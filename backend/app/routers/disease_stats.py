@@ -304,6 +304,7 @@ async def trend_with_calls(
 
     if settings.DATA_GO_KR_API_KEY:
         now = datetime.now(timezone.utc)
+
         # 최근 N개월의 연도 목록 (중복 제거)
         years: list[str] = []
         for i in range(months - 1, -1, -1):
@@ -315,31 +316,40 @@ async def trend_with_calls(
             if y not in years:
                 years.append(y)
 
-        # 연도별 Disease API 병렬 호출
-        tasks = [_fetch("Disease", {"searchType": "1", "searchYear": y, "patntType": "1"})
-                 for y in years]
+        # PeriodBasic 월별(searchPeriodType=2) API 병렬 호출 — 연도별
+        tasks = [
+            _fetch("PeriodBasic", {
+                "searchPeriodType": "2",
+                "searchStartYear": y,
+                "searchEndYear": y,
+            })
+            for y in years
+        ]
         results_by_year = dict(zip(years, await asyncio.gather(*tasks, return_exceptions=True)))
 
         # 월별 트렌드 구성
+        # period 형식: "2026년 06월"
         trend = []
         for i in range(months - 1, -1, -1):
             month = now.month - i
             year = now.year
             while month <= 0:
                 month += 12; year -= 1
-            ym     = f"{year}-{month:02d}"
-            label  = f"{month}월"
-            row    = {"period": ym, "label": label, "calls": call_map.get(ym, 0)}
+            ym        = f"{year}-{month:02d}"
+            label     = f"{month}월"
+            period_kr = f"{year}년 {month:02d}월"
+            row       = {"period": ym, "label": label, "calls": call_map.get(ym, 0)}
 
             year_items = results_by_year.get(str(year))
             if isinstance(year_items, list) and year_items:
                 agg: dict[str, int] = {}
                 for it in year_items:
-                    if it.get("patntType") in ("계", None, ""):
+                    if it.get("period", "") == period_kr:
                         name = it.get("icdNm", "")
-                        agg[name] = agg.get(name, 0) + _safe_int(it.get("resultVal"))
-                top3 = sorted(agg.items(), key=lambda x: x[1], reverse=True)[:3]
-                for name, cnt in top3:
+                        if name:
+                            agg[name] = agg.get(name, 0) + _safe_int(it.get("resultVal", 0))
+                top2 = sorted(agg.items(), key=lambda x: x[1], reverse=True)[:2]
+                for name, cnt in top2:
                     row[name] = cnt
             trend.append(row)
     else:
@@ -349,9 +359,17 @@ async def trend_with_calls(
             row["calls"] = call_map.get(item["period"], item["calls"])
             trend.append(row)
 
+    # top 2 질환명 추출 (가장 최근 달 기준)
+    top_diseases: list[str] = []
+    if trend:
+        last = trend[-1]
+        disease_keys = [k for k in last if k not in ("period", "label", "calls")]
+        top_diseases = sorted(disease_keys, key=lambda k: last.get(k, 0), reverse=True)[:2]
+
     data = {
         "months": months,
         "trend": trend,
+        "top_diseases": top_diseases,
         "is_mock": not bool(settings.DATA_GO_KR_API_KEY),
     }
     _cache_set(cache_key, data)
