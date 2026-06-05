@@ -175,6 +175,19 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             query, is_oos, oos_type, oos_reason, disease_name, retrieval, category=category
         )
 
+        # no_result 시 이관카드 강제 표시 (키워드 미매칭이어도 임베딩 검색으로 보완)
+        if card.get("status") == "no_result" and not transfer_suggs:
+            try:
+                fallback_transfer = await _search_transfer(pool, vec_list, query_text=query, keyword_only=False)
+                if fallback_transfer:
+                    transfer_suggs = fallback_transfer
+                    await _broadcast(call_id, json.dumps({
+                        "type": "transfer_suggestion",
+                        "data": transfer_suggs,
+                    }, ensure_ascii=False))
+            except Exception as e:
+                print(f"[no_result 이관 폴백 오류] {e}")
+
         session.ai_guidance = _build_guidance(query, card, similar_cases, transfer_suggs)
 
         card_status = card.get("status", "error")
