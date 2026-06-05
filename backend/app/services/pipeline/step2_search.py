@@ -178,6 +178,14 @@ TRANSFER_FALLBACK = {
     "similarity": 0.0,
 }
 
+TRANSFER_FALLBACK_INFECTIOUS = {
+    "org_name": "감염병정책국 감염병관리과",
+    "dept_name": "감염병관리과",
+    "phone": "043-719-7140",
+    "description_summary": "법정감염병 신고·관리, 감염병 예방·대응 관련 문의. 담당 질환이 불분명한 경우 감염병관리과로 문의하세요.",
+    "similarity": 0.0,
+}
+
 
 def _get_client() -> AsyncOpenAI:
     global _client
@@ -280,6 +288,7 @@ async def _pick_best_agency(pool, query_vec: list[float], agencies: list[dict]) 
 
 async def _search_transfer(
     pool, query_vec: list[float], query_text: str = "", keyword_only: bool = False,
+    category: str | None = None,
 ) -> list[dict]:
     # pool은 asyncpg Pool 또는 Connection 모두 허용
     # ── ① 키워드 매칭 (모든 카테고리) ────────────────────────────
@@ -335,7 +344,9 @@ async def _search_transfer(
             "matched_by":          "embedding",
         }]
 
-    # ── ③ 폴백: 110 (이관 카테고리 전용) ────────────────────────
+    # ── ③ 폴백: 감염병이면 감염병관리과, 나머지는 110 ────────────
+    if category == "감염병":
+        return [TRANSFER_FALLBACK_INFECTIOUS]
     return [TRANSFER_FALLBACK]
 
 

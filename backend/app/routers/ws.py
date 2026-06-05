@@ -155,7 +155,8 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
             knowledge_task,
             asyncio.sleep(0),
             _search_transfer(pool, vec_list, query_text=query,
-                             keyword_only=not (is_oos and oos_type == "transfer")),
+                             keyword_only=not (is_oos and oos_type == "transfer"),
+                             category=category),
             return_exceptions=True,
         )
 
@@ -178,7 +179,7 @@ async def _run_pipeline(call_id: int, session, llm_result: dict):
         # no_result 시 이관카드 강제 표시 (키워드 미매칭이어도 임베딩 검색으로 보완)
         if card.get("status") == "no_result" and not transfer_suggs:
             try:
-                fallback_transfer = await _search_transfer(pool, vec_list, query_text=query, keyword_only=False)
+                fallback_transfer = await _search_transfer(pool, vec_list, query_text=query, keyword_only=False, category=category)
                 if fallback_transfer:
                     transfer_suggs = fallback_transfer
                     await _broadcast(call_id, json.dumps({
