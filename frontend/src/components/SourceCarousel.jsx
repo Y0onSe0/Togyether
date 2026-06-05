@@ -101,8 +101,6 @@ const SourceCarousel = ({ references = [] }) => {
   const buildPathLabel = (ref) => [
     getDocumentTitle2(ref.document_title, ref.disease_name) || ref.title || ref.source || '출처 문서',
     ref.disease_name,
-    ref.chapter,
-    ref.section_title || ref.section,
   ].filter(Boolean).join(' > ');
 
   const title = buildPathLabel(ref);
