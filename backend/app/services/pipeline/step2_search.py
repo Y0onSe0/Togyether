@@ -60,20 +60,10 @@ TRANSFER_KEYWORD_MAP = [
     },
     {
         "keywords": ["에이즈", "HIV", "AIDS", "후천성면역결핍"],
-        "agencies": [
-            {
-                "org_name": "감염병정책국 에이즈관리과",
-                "dept_name": "에이즈관리과",
-                "phone": "043-719-7330",
-                "description_summary": "에이즈(HIV/AIDS) 및 성매개감염병 관리·예방·홍보 업무. 에이즈 신고, 감염인 관리, 정책 수립 관련 전문 문의",
-            },
-            {
-                "org_name": "에이즈상담센터",
-                "dept_name": None,
-                "phone": "02-861-4114",
-                "description_summary": "HIV/AIDS 감염인 및 가족 대상 전문 심리 상담, 의료기관 연계, 복지 서비스 안내",
-            },
-        ],
+        "org_name": "감염병정책국 에이즈관리과",
+        "dept_name": "에이즈관리과",
+        "phone": "043-719-7330",
+        "description_summary": "에이즈(HIV/AIDS) 및 성매개감염병 관리·예방·홍보 업무. 에이즈 신고, 감염인 관리, 정책 수립 관련 전문 문의",
     },
     {
         "keywords": ["B형간염", "C형간염", "비형간염", "씨형간염", "B형 간염", "C형 간염", "비형 간염", "씨형 간염"],
