@@ -34,8 +34,8 @@ const OosActionRequired = ({ query }) => (
         <span>질병보건통합관리시스템 헬프데스크</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-amber-600">→</span>
-        <span className="font-semibold">1339 → 시스템 문의</span>
+        <span className="text-amber-600">📞</span>
+        <span className="font-semibold">1644-1407</span>
       </div>
     </div>
     <button
