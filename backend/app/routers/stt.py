@@ -102,6 +102,62 @@ def _normalize_numbers(text: str) -> str:
     return " ".join(result)
 
 
+# 의료 도메인 오인식 치환 테이블 (긴 패턴 우선 적용)
+_MEDICAL_REPLACE = [
+    # E형간염 오인식 (우선순위 높음 — 2형보다 먼저)
+    ("이형 간염", "E형간염"),
+    ("이형간염", "E형간염"),
+    ("e형 간염", "E형간염"),
+    ("e형간염", "E형간염"),
+    ("2형 간염", "E형간염"),   # "이형"이 "2형"으로 숫자변환된 경우
+    ("2형감염", "E형간염"),
+    # C형간염 오인식
+    ("시험관염", "C형간염"),
+    ("씨형 간염", "C형간염"),
+    ("씨형간염", "C형간염"),
+    ("씨 형 간염", "C형간염"),
+    ("c형 간염", "C형간염"),
+    ("c형간염", "C형간염"),
+    # A형간염
+    ("에이형 간염", "A형간염"),
+    ("에이형간염", "A형간염"),
+    ("a형 간염", "A형간염"),
+    # B형간염
+    ("비형 간염", "B형간염"),
+    ("비형간염", "B형간염"),
+    ("b형 간염", "B형간염"),
+    # 결핵 오인식
+    ("혈액이요", "결핵이요"),
+    ("혈액요", "결핵이요"),
+    ("혈 액이요", "결핵이요"),
+    # 임질 오인식
+    ("인지를", "임질을"),
+    ("인질을", "임질을"),
+    ("인질이", "임질이"),
+    ("인질에", "임질에"),
+    ("인질의", "임질의"),
+    ("인질로", "임질로"),
+    ("인질은", "임질은"),
+    ("인질이요", "임질이요"),
+    # 기타 자주 오인식되는 단어
+    ("에이즈", "후천성면역결핍증"),
+    ("에이 즈", "후천성면역결핍증"),
+    ("코로나 19", "코로나19"),
+    ("코로나nineteen", "코로나19"),
+]
+
+def _normalize_medical(text: str) -> str:
+    """의료 도메인 오인식 텍스트 치환"""
+    lower = text.lower()
+    for wrong, correct in _MEDICAL_REPLACE:
+        if wrong.lower() in lower:
+            # 대소문자 무시하고 치환
+            import re
+            text = re.sub(re.escape(wrong), correct, text, flags=re.IGNORECASE)
+            lower = text.lower()
+    return text
+
+
 def _map_speaker(speaker_idx: int, first_speaker: dict) -> str:
     """
     Deepgram speaker 인덱스 → 상담사/고객 매핑
@@ -217,7 +273,7 @@ async def stt_proxy(
                             ch_idx = data.get("channel_index", [0])
                             ch = ch_idx[0] if ch_idx else 0
                             speaker = "상담사" if ch == 0 else "고객"
-                            text = _normalize_numbers(transcript)
+                            text = _normalize_medical(_normalize_numbers(transcript))
                             if text:
                                 session.conversation_history.append({
                                     "speaker": speaker, "text": text, "timestamp": timestamp,
@@ -267,7 +323,7 @@ async def stt_proxy(
 
                         for utt in utterances:
                             speaker = utt["speaker"]
-                            text    = _normalize_numbers(utt["text"])  # 숫자 정규화
+                            text    = _normalize_medical(_normalize_numbers(utt["text"]))  # 숫자 + 의료 정규화
                             if not text:
                                 continue
 

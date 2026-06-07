@@ -272,26 +272,37 @@ const ACW = () => {
     });
   };
 
-  const buildPayload = () => ({
-    title: form.title,
-    customer_type: form.customerType,
-    customer_type_custom: form.customerType === 'other' ? form.customerTypeCustom : null,
-    category: form.categoryType,
-    category_major: form.categoryMajor,
-    category_mid: form.categoryMidList[0] || null,
-    category_mid_list: form.categoryMidList,
-    disease_name: form.diseaseName,
-    is_transferred: form.isTransferred,
-    transfer_target: form.isTransferred ? form.transferTarget : null,
-    qa_summary: (form.question || form.answer)
-      ? [{ q: form.question, a: form.answer }]
-      : [],
-    is_resolved: form.resolved,
-    agent_used_ai: form.agentUsedAi,
-    satisfaction: form.satisfaction || null,
-    agent_memo: form.memo,
-    keywords: [],
-  });
+  const buildPayload = () => {
+    // qa_summary: 폼에 입력된 Q/A가 있으면 우선 사용, 없으면 genData 전체 사용
+    let qaSummary = [];
+    if (form.question || form.answer) {
+      qaSummary = [{ q: form.question, a: form.answer }];
+    } else if (genData?.qa_summary?.length) {
+      qaSummary = genData.qa_summary;
+    }
+
+    return {
+      title: form.title,
+      customer_type: form.customerType,
+      customer_type_custom: form.customerType === 'other' ? form.customerTypeCustom : null,
+      category: form.categoryType,
+      category_major: form.categoryMajor,
+      category_mid: form.categoryMidList[0] || null,
+      category_mid_list: form.categoryMidList,
+      disease_name: form.diseaseName,
+      is_transferred: form.isTransferred,
+      transfer_target: form.isTransferred ? form.transferTarget : null,
+      qa_summary: qaSummary,
+      ai_response_summary: genData?.ai_response_summary || null,
+      is_resolved: form.resolved,
+      agent_used_ai: form.agentUsedAi,
+      satisfaction: form.satisfaction || null,
+      agent_memo: form.memo,
+      keywords: genData?.keywords || [],
+      // ★ ai_guidance 저장 (통화 중 AI가 처리한 내역)
+      ai_guidance: initData?.ai_guidance || null,
+    };
+  };
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
