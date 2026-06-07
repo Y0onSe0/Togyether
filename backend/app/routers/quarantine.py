@@ -80,6 +80,9 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+DATE_FILTER_FROM = "2022-01-01"  # 이 날짜 이전 start_date 데이터는 표시하지 않음
+
+
 # ── 엔드포인트 ────────────────────────────────────────────────────────
 
 @router.get("/country")
@@ -105,6 +108,9 @@ async def get_by_country(name: str = Query(..., description="국가명 (예: 베
         disease    = r.get("ovseaIcdKornNm", "")
         start_date = r.get("srvlncBgngYmd", "") or ""
         end_date   = r.get("srvlncEndYmd",  "") or ""
+        # 2022년 이전 데이터 필터링
+        if start_date and start_date < DATE_FILTER_FROM:
+            continue
         if disease not in seen or start_date > seen[disease]["start_date"]:
             seen[disease] = {
                 "disease":    disease,
@@ -144,6 +150,7 @@ async def get_by_disease(icd: str = Query(..., description="감염병 코드 (�
             }
             for r in items
             if r.get("useYn", "Y") == "Y"
+            and (r.get("mngBgngDt", "") or "") >= DATE_FILTER_FROM  # 2022년 이전 제외
         ],
         key=lambda x: x["start_date"] or "",
         reverse=True,  # 최신순

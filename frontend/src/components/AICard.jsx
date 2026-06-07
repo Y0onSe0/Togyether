@@ -82,28 +82,34 @@ const OosRealtimeLocal = ({ query }) => (
         </a>
       ))}
     </div>
-    <p className="text-[13px] text-gray-500">☎ 1339 (질병관리청 콜센터)</p>
   </div>
 );
 
 /** unrelated: 완전 범위 외 */
-const OosUnrelated = ({ query }) => (
-  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
-    <div className="flex items-center gap-2">
-      <span className="text-lg">ℹ️</span>
-      <p className="text-[15px] font-semibold text-gray-700">업무 범위 외 문의</p>
-    </div>
-    {query && (
-      <p className="text-[13px] text-gray-500 bg-white rounded-lg px-3 py-2 border border-gray-200">
-        "{query}"
+const GOV_KEYWORDS = ['정부', '민원', '행정', '공공', '국가', '지자체', '지방자치', '시청', '구청', '군청', '동사무소', '주민센터', '세금', '복지', '연금', '건강보험', '국민'];
+const OosUnrelated = ({ query, oos_reason }) => {
+  const combined = `${query || ''} ${oos_reason || ''}`;
+  const isGovRelated = GOV_KEYWORDS.some(kw => combined.includes(kw));
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">ℹ️</span>
+        <p className="text-[15px] font-semibold text-gray-700">업무 범위 외 문의</p>
+      </div>
+      {query && (
+        <p className="text-[13px] text-gray-500 bg-white rounded-lg px-3 py-2 border border-gray-200">
+          "{query}"
+        </p>
+      )}
+      <p className="text-[14px] text-gray-600">
+        해당 문의는 질병관리청 콜센터 업무 범위 외 내용입니다.
       </p>
-    )}
-    <p className="text-[14px] text-gray-600">
-      해당 문의는 질병관리청 콜센터 업무 범위 외 내용입니다.
-    </p>
-    <p className="text-[13px] text-gray-500">관련 기관으로 안내해 주세요.</p>
-  </div>
-);
+      {isGovRelated && (
+        <p className="text-[13px] text-gray-500">→ ☎ 110 (정부민원안내 콜센터)</p>
+      )}
+    </div>
+  );
+};
 
 /** transfer: 타 기관·부서 이관 */
 const OosTransfer = ({ query }) => (
@@ -121,6 +127,49 @@ const OosTransfer = ({ query }) => (
   </div>
 );
 
+// ── 검역 감염병 정보 사전 ─────────────────────────────────────────────
+const DISEASE_INFO = {
+  '뎅기열':       { symptoms: '고열, 두통, 근육통, 발진', prevention: '모기 기피제·긴소매 착용, 모기장 사용', action: '귀국 후 증상 시 의료기관 방문 및 해외 여행력 고지' },
+  '콜레라':       { symptoms: '심한 수양성 설사, 구토, 탈수', prevention: '안전한 음식·물 섭취, 손 위생 철저', action: '경구수액 보충, 즉시 의료기관 방문' },
+  '황열':         { symptoms: '발열, 황달, 출혈', prevention: '황열 예방접종 필수 (입국 요건 국가 있음), 모기 차단', action: '귀국 후 증상 시 즉시 의료기관 방문' },
+  '말라리아':     { symptoms: '오한, 발열, 발한이 주기적으로 반복', prevention: '예방약 복용, 모기 차단', action: '귀국 후 발열 시 의료기관 방문 및 여행력 고지' },
+  '지카바이러스': { symptoms: '발열, 발진, 관절통, 결막염 (대부분 경미)', prevention: '모기 차단, 임산부 유행지역 여행 자제', action: '임신 중이거나 임신 예정이면 의사 상담 필수' },
+  '지카':         { symptoms: '발열, 발진, 관절통, 결막염 (대부분 경미)', prevention: '모기 차단, 임산부 유행지역 여행 자제', action: '임신 중이거나 임신 예정이면 의사 상담 필수' },
+  '에볼라':       { symptoms: '갑작스러운 고열, 심한 두통, 출혈', prevention: '감염자 접촉 금지, 야생동물 접촉 주의', action: '귀국 후 21일 이내 증상 시 즉시 격리·신고' },
+  '에볼라바이러스': { symptoms: '갑작스러운 고열, 심한 두통, 출혈', prevention: '감염자 접촉 금지, 야생동물 접촉 주의', action: '귀국 후 21일 이내 증상 시 즉시 격리·신고' },
+  '엠폭스':       { symptoms: '발열, 림프절 부종, 특징적 수포성 발진', prevention: '피부 병변 있는 사람과 밀접 접촉 금지', action: '귀국 후 21일 이내 증상 시 의료기관 방문 및 해외력 고지' },
+  '원숭이두창':   { symptoms: '발열, 림프절 부종, 특징적 수포성 발진', prevention: '피부 병변 있는 사람과 밀접 접촉 금지', action: '귀국 후 21일 이내 증상 시 의료기관 방문 및 해외력 고지' },
+  '메르스':       { symptoms: '발열, 기침, 호흡곤란', prevention: '낙타 접촉 금지, 손 위생', action: '귀국 후 14일 이내 발열·호흡기 증상 시 1339 신고 후 이동' },
+  '중동호흡기증후군': { symptoms: '발열, 기침, 호흡곤란', prevention: '낙타 접촉 금지, 손 위생', action: '귀국 후 14일 이내 발열·호흡기 증상 시 1339 신고 후 이동' },
+  '사스':         { symptoms: '발열, 기침, 호흡곤란', prevention: '마스크 착용, 환자 접촉 금지', action: '귀국 후 증상 시 즉시 1339 신고' },
+  '페스트':       { symptoms: '갑작스러운 고열, 림프절 비대(가래톳)', prevention: '쥐·벼룩 접촉 금지', action: '즉시 의료기관 방문, 치료 시 항생제 사용' },
+  '폴리오':       { symptoms: '발열, 팔다리 마비 (불현성 감염 多)', prevention: '폴리오 예방접종 확인', action: '예방접종 미완료자 귀국 후 추가 접종 권고' },
+  '소아마비':     { symptoms: '발열, 팔다리 마비 (불현성 감염 多)', prevention: '폴리오 예방접종 확인', action: '예방접종 미완료자 귀국 후 추가 접종 권고' },
+  '홍역':         { symptoms: '고열, 콧물, 결막염, 특징적 발진', prevention: 'MMR 예방접종 2회 완료 확인', action: '귀국 후 21일 이내 증상 시 마스크 착용 후 의료기관 방문' },
+  '라싸열':       { symptoms: '발열, 두통, 인후통, 출혈', prevention: '설치류 접촉 금지, 위생 철저', action: '귀국 후 21일 이내 증상 시 즉시 격리·신고' },
+  '치쿤구니야':   { symptoms: '갑작스러운 고열, 심한 관절통', prevention: '모기 기피제·긴소매 착용', action: '귀국 후 증상 시 의료기관 방문 및 해외 여행력 고지' },
+  '코로나':       { symptoms: '발열, 기침, 호흡곤란, 후각·미각 이상', prevention: '마스크 착용, 손 위생, 예방접종', action: '증상 시 자가격리 후 의료기관 방문' },
+  '코로나19':     { symptoms: '발열, 기침, 호흡곤란, 후각·미각 이상', prevention: '마스크 착용, 손 위생, 예방접종', action: '증상 시 자가격리 후 의료기관 방문' },
+};
+
+const DEFAULT_DISEASE_INFO = {
+  symptoms: '발열, 소화기·호흡기 증상 등 (병명에 따라 다름)',
+  prevention: '현지 음식·물 위생 관리, 모기 등 매개체 차단, 손 위생 철저',
+  action: '귀국 후 증상 발생 시 의료기관 방문 및 해외 여행력 반드시 고지',
+};
+
+/** 병명 클릭 시 펼쳐지는 상세 정보 */
+const DiseaseDetail = ({ disease }) => {
+  const info = DISEASE_INFO[disease] || DEFAULT_DISEASE_INFO;
+  return (
+    <div className="mt-1.5 bg-teal-50 rounded-lg px-3 py-2 space-y-1 text-[12px]">
+      <p><span className="font-semibold text-teal-700">증상</span> <span className="text-gray-600">{info.symptoms}</span></p>
+      <p><span className="font-semibold text-teal-700">예방</span> <span className="text-gray-600">{info.prevention}</span></p>
+      <p><span className="font-semibold text-teal-700">조치</span> <span className="text-gray-600">{info.action}</span></p>
+    </div>
+  );
+};
+
 // ── 검역 정보 카드 (API 연동) ─────────────────────────────────────────
 const MOCK_QUARANTINE = {
   success: true,
@@ -133,8 +182,9 @@ const MOCK_QUARANTINE = {
 };
 
 const QuarantineCard = ({ query }) => {
-  const [state, setState] = useState('loading');
-  const [data, setData]   = useState(null);
+  const [state, setState]       = useState('loading');
+  const [data, setData]         = useState(null);
+  const [expanded, setExpanded] = useState(null); // 펼쳐진 병명
 
   useEffect(() => {
     if (!query) return;
@@ -173,9 +223,18 @@ const QuarantineCard = ({ query }) => {
           {data.data?.length > 0 ? (
             <div className="space-y-1.5">
               {data.data.map((item, i) => (
-                <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-teal-100">
-                  <span className="text-[14px] font-medium text-gray-800">⚠️ {item.disease}</span>
-                  <span className="text-[12px] text-gray-400">{item.start_date} ~</span>
+                <div key={i}>
+                  <button
+                    onClick={() => setExpanded(expanded === i ? null : i)}
+                    className="w-full flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-teal-100 hover:border-teal-300 hover:bg-teal-50 transition-colors text-left"
+                  >
+                    <span className="text-[14px] font-medium text-gray-800">⚠️ {item.disease}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] text-gray-400">{item.start_date} ~</span>
+                      <span className="text-teal-400 text-[11px]">{expanded === i ? '▲' : '▼'}</span>
+                    </div>
+                  </button>
+                  {expanded === i && <DiseaseDetail disease={item.disease} />}
                 </div>
               ))}
             </div>
@@ -452,13 +511,13 @@ const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
 
     // ── OOS: 타입별 분기 ──────────────────────────────────────────────
     if (aiState.status === 'oos') {
-      const { oos_type, query } = aiState;
+      const { oos_type, oos_reason, query } = aiState;
 
       if (oos_type === 'action_required') return <OosActionRequired query={query} />;
       if (oos_type === 'realtime_local')  return <OosRealtimeLocal query={query} />;
       if (oos_type === 'transfer')        return <OosTransfer query={query} />;
       // unrelated (기본)
-      return <OosUnrelated query={query} />;
+      return <OosUnrelated query={query} oos_reason={oos_reason} />;
     }
 
     // ── api_pending: 링크 안내 ───────────────────────────────────────
@@ -548,8 +607,11 @@ const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
         <SimilarCasesCard cases={similarCases} />
       )}
 
-      {/* 키워드 매칭 시 모든 카테고리에서 이관카드 표시 */}
-      {transferData && transferData.length > 0 && (
+      {/* 키워드 매칭 시 이관카드 표시 (접수처리·범위외 제외) */}
+      {transferData && transferData.length > 0
+        && aiState?.oos_type !== 'action_required'
+        && aiState?.oos_type !== 'unrelated'
+        && (
         <TransferCard institutions={transferData} />
       )}
 
