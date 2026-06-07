@@ -5,6 +5,7 @@ import Main from './pages/Main';
 import ACW from './pages/ACW';
 import Dashboard from './pages/Dashboard';
 import Notice from './pages/Notice';
+import History from './pages/History';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('access_token');
@@ -47,6 +48,14 @@ function App() {
           element={
             <PrivateRoute>
               <Notice />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <PrivateRoute>
+              <History />
             </PrivateRoute>
           }
         />
