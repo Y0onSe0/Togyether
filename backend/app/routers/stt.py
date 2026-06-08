@@ -147,15 +147,9 @@ _MEDICAL_REPLACE = [
 ]
 
 def _normalize_medical(text: str) -> str:
-    """의료 도메인 오인식 텍스트 치환"""
-    lower = text.lower()
-    for wrong, correct in _MEDICAL_REPLACE:
-        if wrong.lower() in lower:
-            # 대소문자 무시하고 치환
-            import re
-            text = re.sub(re.escape(wrong), correct, text, flags=re.IGNORECASE)
-            lower = text.lower()
-    return text
+    """의료 도메인 오인식 텍스트 치환 (medical_normalize 공용 모듈로 위임)"""
+    from app.services.medical_normalize import normalize_medical_text
+    return normalize_medical_text(text)
 
 
 def _map_speaker(speaker_idx: int, first_speaker: dict) -> str:

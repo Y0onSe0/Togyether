@@ -2,7 +2,7 @@ const TransferCard = ({ institutions = [] }) => {
   if (!institutions || institutions.length === 0) return null;
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
       <div className="flex items-center gap-2 mb-3">
         <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -33,7 +33,7 @@ const TransferCard = ({ institutions = [] }) => {
                 )}
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-[14px] font-bold text-[#1E40AF]">
+                <p className="text-[14px] font-bold text-[#0054A6]">
                   {inst.phone || inst.phone_number || '-'}
                 </p>
               </div>

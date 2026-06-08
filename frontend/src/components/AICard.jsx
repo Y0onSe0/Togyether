@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import SourceCarousel from './SourceCarousel';
-import SimilarCasesCard from './SimilarCasesCard';
 import TransferCard from './TransferCard';
 
 // ── 공통 배지 ─────────────────────────────────────────────────────────
 const StatusBadge = ({ category }) => {
   if (!category) return null;
   return (
-    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[13px] font-semibold rounded-full">
+    <span className="inline-block px-2 py-0.5 bg-[#EAF0FA] text-[#003F7D] text-[13px] font-semibold rounded-full">
       {category}
     </span>
   );
@@ -17,7 +16,7 @@ const StatusBadge = ({ category }) => {
 
 /** action_required: 시스템·행정 접수 처리 */
 const OosActionRequired = ({ query }) => (
-  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
     <div className="flex items-center gap-2">
       <span className="text-lg">⚙️</span>
       <p className="text-[15px] font-semibold text-amber-800">시스템·행정 문의</p>
@@ -49,7 +48,7 @@ const OosActionRequired = ({ query }) => (
 
 /** realtime_local: 실시간·위치 기반 정보 */
 const OosRealtimeLocal = ({ query }) => (
-  <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 space-y-3">
+  <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 space-y-3">
     <div className="flex items-center gap-2">
       <span className="text-lg">📍</span>
       <p className="text-[15px] font-semibold text-sky-800">실시간·위치 정보 문의</p>
@@ -113,7 +112,7 @@ const OosUnrelated = ({ query, oos_reason }) => {
 
 /** transfer: 타 기관·부서 이관 */
 const OosTransfer = ({ query }) => (
-  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
     <div className="flex items-center gap-2">
       <span className="text-lg">📞</span>
       <p className="text-[15px] font-semibold text-purple-800">타 기관 이관 안내</p>
@@ -198,7 +197,7 @@ const QuarantineCard = ({ query }) => {
   }, [query]);
 
   return (
-    <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+    <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-lg">✈️</span>
         <p className="text-[15px] font-semibold text-teal-800">해외/검역 정보</p>
@@ -302,7 +301,7 @@ const VaccineCard = ({ query }) => {
   }, [query]);
 
   return (
-    <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-lg">💉</span>
         <p className="text-[15px] font-semibold text-green-800">예방접종 문의</p>
@@ -375,7 +374,7 @@ const ApiPendingCard = ({ query, category }) => {
 
   // 감염병 통계·현황 → 링크만
   return (
-    <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-lg">📊</span>
         <p className="text-[15px] font-semibold text-green-800">{category} 문의</p>
@@ -398,7 +397,7 @@ const ApiPendingCard = ({ query, category }) => {
 
 // ── 히스토리 캐러셀 ────────────────────────────────────────────────────
 const STATUS_LABEL = {
-  success:     { text: '답변', color: 'bg-blue-100 text-blue-700' },
+  success:     { text: '답변', color: 'bg-[#EAF0FA] text-[#003F7D]' },
   oos:         { text: 'OOS',  color: 'bg-amber-100 text-amber-700' },
   api_pending: { text: 'API',  color: 'bg-green-100 text-green-700' },
   no_result:   { text: '미검색', color: 'bg-gray-100 text-gray-500' },
@@ -421,7 +420,7 @@ const HistoryCarousel = ({ history }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+    <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[13px] font-semibold text-gray-500">
           이전 분석 ({history.length}건)
@@ -474,7 +473,7 @@ const HistoryCarousel = ({ history }) => {
                     <p className="text-[12px] text-amber-600">{item.oos_type} 유형</p>
                   )}
                   {item.references?.length > 0 && (
-                    <p className="text-[12px] text-blue-500">출처 {item.references.length}건</p>
+                    <p className="text-[12px] text-[#EAF0FA]0">출처 {item.references.length}건</p>
                   )}
                 </div>
               )}
@@ -487,7 +486,7 @@ const HistoryCarousel = ({ history }) => {
 };
 
 // ── 메인 AICard ───────────────────────────────────────────────────────
-const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
+const AICard = ({ aiState, aiHistory = [], transferData }) => {
   const renderAIContent = () => {
     if (!aiState || aiState.status === 'idle') {
       return (
@@ -505,7 +504,7 @@ const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
     if (aiState.status === 'loading') {
       return (
         <div className="flex flex-col items-center justify-center h-48 gap-3">
-          <div className="w-8 h-8 border-3 border-blue-200 border-t-[#1E40AF] rounded-full animate-spin" />
+          <div className="w-8 h-8 border-3 border-blue-200 border-t-[#0054A6] rounded-full animate-spin" />
           <p className="text-[15px] text-gray-500">⏳ AI 분석 중...</p>
         </div>
       );
@@ -529,7 +528,7 @@ const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
 
     if (aiState.status === 'no_result') {
       return (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -585,14 +584,11 @@ const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
     return null;
   };
 
-  // OOS이거나 api_pending일 때는 유사사례/이관카드 숨김
-  const isOosLike = aiState?.status === 'oos' || aiState?.status === 'api_pending';
-
   return (
     <div className="flex flex-col gap-3 h-full overflow-y-auto">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
+          <div className="w-7 h-7 bg-gradient-to-br from-[#EAF0FA]0 to-[#003F7D] rounded-lg flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M13 10V3L4 14h7v7l9-11h-7z"
@@ -604,16 +600,8 @@ const AICard = ({ aiState, aiHistory = [], similarCases, transferData }) => {
         {renderAIContent()}
       </div>
 
-      {/* OOS/api_pending일 때 유사사례 숨김 */}
-      {!isOosLike && similarCases && similarCases.length > 0 && (
-        <SimilarCasesCard cases={similarCases} />
-      )}
-
-      {/* 키워드 매칭 시 이관카드 표시 (접수처리·범위외 제외) */}
-      {transferData && transferData.length > 0
-        && aiState?.oos_type !== 'action_required'
-        && aiState?.oos_type !== 'unrelated'
-        && (
+      {/* 키워드 매칭 시 모든 카테고리에서 이관카드 표시 */}
+      {transferData && transferData.length > 0 && (
         <TransferCard institutions={transferData} />
       )}
 

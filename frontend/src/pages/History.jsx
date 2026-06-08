@@ -241,11 +241,18 @@ const DetailPanel = ({ callId, onClose }) => {
                       <div>
                         <p className="text-[10px] text-gray-400 mb-2">참고 출처</p>
                         <div className="space-y-1">
-                          {data.ai_guidance.sources.map((src, i) => (
-                            <div key={i} className="text-[11px] text-gray-500 bg-gray-50 px-2 py-1 rounded">
-                              {typeof src === 'string' ? src : src.title || src.source || JSON.stringify(src)}
-                            </div>
-                          ))}
+                          {data.ai_guidance.sources.slice(0, 3).map((src, i) => {
+                            const title = typeof src === 'string'
+                              ? src
+                              : src.document_title || src.title || src.source || null;
+                            if (!title) return null;
+                            return (
+                              <div key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 bg-gray-50 px-2 py-1.5 rounded">
+                                <span className="shrink-0 text-gray-300 font-bold">{i + 1}.</span>
+                                <span className="leading-relaxed">{title}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

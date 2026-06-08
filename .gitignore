@@ -35,15 +35,27 @@ data/
 .DS_Store
 Thumbs.db
 
-# 임시 스크립트
+# 임시 스크립트 (루트)
+fix_*.py
+reapply.py
+test_*.py
+
+# 임시 스크립트 (backend)
 backend/check_*.py
 backend/reset_*.py
 backend/db_status.py
 backend/embed_knowledge_chunks.py
 backend/ws_test.py
+backend/test_*.py
+backend/eval_logs/
 
-# DB 디버그 스크립트
+# DB 디버그/임시 스크립트
 db/scripts/debug_*.py
+db/scripts/04_*.py
+db/scripts/05_*.py
+db/scripts/06_*.py
+db/scripts/07_*.py
+db/scripts/parsed/
 
 # 실험적/미완성 파서
 db/scripts/parsers/DATA_001_parse_covid_mineru.py

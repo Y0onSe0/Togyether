@@ -35,20 +35,20 @@ const ChunkModal = ({ source, onClose }) => {
 
       {/* 모달 본체 */}
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col z-10"
+        className="relative bg-white rounded shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col z-10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-gray-100">
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#1D4ED8] flex-shrink-0 mt-1.5" />
+              <span className="inline-block w-2 h-2 rounded-full bg-[#0054A6] flex-shrink-0 mt-1.5" />
               <div>
                 <p className="text-[14px] font-semibold text-gray-800 leading-snug">
                   {pathLabel}
                 </p>
                 {source.disease_name && (
-                  <p className="text-[12px] text-blue-600 mt-0.5">{source.disease_name}</p>
+                  <p className="text-[12px] text-[#0054A6] mt-0.5">{source.disease_name}</p>
                 )}
               </div>
             </div>
@@ -117,10 +117,10 @@ const SourceCarousel = ({ references = [] }) => {
       </p>
 
       <button
-        className="w-full text-left bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 hover:bg-blue-100 transition-colors"
+        className="w-full text-left bg-[#EAF0FA] border border-[#EAF0FA] rounded-lg px-3 py-2 hover:bg-[#EAF0FA] transition-colors"
         onClick={() => setModalOpen(true)}
       >
-        <p className="text-[12px] text-blue-700 font-medium leading-snug line-clamp-2">{title}</p>
+        <p className="text-[12px] text-[#003F7D] font-medium leading-snug line-clamp-2">{title}</p>
       </button>
 
       {/* 페이지네이션 */}

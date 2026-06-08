@@ -33,7 +33,7 @@ const StarRating = ({ value, onChange }) => (
 
 const SectionTitle = ({ number, title }) => (
   <div className="flex items-center gap-2 mb-3">
-    <span className="w-6 h-6 rounded-full bg-[#1E40AF] text-white text-[13px] flex items-center justify-center font-bold flex-shrink-0">
+    <span className="w-6 h-6 rounded-full bg-[#0054A6] text-white text-[13px] flex items-center justify-center font-bold flex-shrink-0">
       {number}
     </span>
     <h3 className="text-[15px] font-semibold text-gray-700">{title}</h3>
@@ -102,7 +102,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder }) => {
           selected.map((val) => (
             <span
               key={val}
-              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-[13px] px-2 py-0.5 rounded-full"
+              className="inline-flex items-center gap-1 bg-blue-100 text-[#003F7D] text-[13px] px-2 py-0.5 rounded-full"
             >
               {val}
               <button type="button" onClick={(e) => remove(val, e)} className="hover:text-red-500">×</button>
@@ -121,7 +121,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder }) => {
                 type="checkbox"
                 checked={selected.includes(opt)}
                 onChange={() => toggle(opt)}
-                className="accent-[#1E40AF]"
+                className="accent-[#0054A6]"
               />
               {opt}
             </label>
@@ -352,7 +352,7 @@ const ACW = () => {
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="px-5 py-2 bg-[#1E40AF] hover:bg-blue-800 text-white text-[15px] font-semibold rounded-xl transition-colors disabled:opacity-60"
+            className="px-5 py-2 bg-[#0054A6] hover:bg-blue-800 text-white text-[15px] font-semibold rounded-lg transition-colors disabled:opacity-60"
           >
             {saving ? '저장 중...' : '완료'}
           </button>
@@ -381,11 +381,11 @@ const ACW = () => {
                 const isAgent = msg.role === 'agent' || msg.speaker === '상담사';
                 return (
                   <div key={i} className={`flex gap-2 ${isAgent ? 'flex-row-reverse' : ''}`}>
-                    <div className={`text-[13px] flex-shrink-0 mt-1 ${isAgent ? 'text-blue-500' : 'text-gray-400'}`}>
+                    <div className={`text-[13px] flex-shrink-0 mt-1 ${isAgent ? 'text-[#EAF0FA]0' : 'text-gray-400'}`}>
                       {isAgent ? '🎧' : '👤'}
                     </div>
-                    <div className={`px-3 py-2 rounded-xl text-[14px] leading-relaxed max-w-[80%] ${
-                      isAgent ? 'bg-blue-50 text-blue-900' : 'bg-gray-50 text-gray-700'
+                    <div className={`px-3 py-2 rounded-lg text-[14px] leading-relaxed max-w-[80%] ${
+                      isAgent ? 'bg-[#EAF0FA] text-blue-900' : 'bg-gray-50 text-gray-700'
                     }`}>
                       {msg.content || msg.text || msg.message}
                     </div>
@@ -400,7 +400,7 @@ const ACW = () => {
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
           {/* Section 1: 통화 메타데이터 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <SectionTitle number="1" title="통화 메타데이터" />
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -420,7 +420,7 @@ const ACW = () => {
           </div>
 
           {/* Section 2: 통화 기본 정보 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <SectionTitle number="2" title="통화 기본 정보" />
             <div className="space-y-4">
 
@@ -448,7 +448,7 @@ const ACW = () => {
                         value={type.value}
                         checked={form.customerType === type.value}
                         onChange={() => handleChange('customerType', type.value)}
-                        className="accent-[#1E40AF]"
+                        className="accent-[#0054A6]"
                       />
                       <span className="text-[15px] text-gray-700">{type.label}</span>
                     </label>
@@ -534,7 +534,7 @@ const ACW = () => {
                         type="radio"
                         checked={form.isTransferred === val}
                         onChange={() => handleChange('isTransferred', val)}
-                        className="accent-[#1E40AF]"
+                        className="accent-[#0054A6]"
                       />
                       <span className="text-[15px] text-gray-700">{label}</span>
                     </label>
@@ -554,11 +554,11 @@ const ACW = () => {
           </div>
 
           {/* Section 3: AI 상담 요약 (generate 결과 — 읽기 전용) */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <SectionTitle number="3" title="AI 상담 요약" />
             {generating ? (
               <div className="flex items-center gap-2 text-[15px] text-gray-400 py-2">
-                <div className="w-4 h-4 border-2 border-blue-200 border-t-[#1E40AF] rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-blue-200 border-t-[#0054A6] rounded-full animate-spin" />
                 AI 요약 생성 중...
               </div>
             ) : genData?.ai_response_summary ? (
@@ -572,7 +572,7 @@ const ACW = () => {
           </div>
 
           {/* Section 4: AI 처리 내역 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <SectionTitle number="4" title="AI 처리 내역" />
             {aiGuidance ? (
               <div className="space-y-3">
@@ -589,7 +589,7 @@ const ACW = () => {
                     {aiGuidance.is_oos ? '범위 외' : aiGuidance.answer ? 'AI 안내 완료' : '결과 없음'}
                   </span>
                   {aiGuidance.disease_name && (
-                    <span className="text-[12px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                    <span className="text-[12px] bg-blue-100 text-[#003F7D] px-2 py-0.5 rounded-full font-semibold">
                       {aiGuidance.disease_name}
                     </span>
                   )}
@@ -607,8 +607,8 @@ const ACW = () => {
 
                 {/* AI 안내 내용 */}
                 {(aiGuidance.answer || aiGuidance.oos_reason) && (
-                  <div className="bg-blue-50 rounded-lg px-3 py-2.5 border-l-2 border-[#1E40AF]">
-                    <p className="text-[12px] text-blue-500 mb-1">
+                  <div className="bg-[#EAF0FA] rounded-lg px-3 py-2.5 border-l-2 border-[#0054A6]">
+                    <p className="text-[12px] text-[#EAF0FA]0 mb-1">
                       {aiGuidance.is_oos ? 'OOS 사유' : 'AI 안내 내용'}
                     </p>
                     <p className="text-[14px] text-blue-900 leading-relaxed">
@@ -652,7 +652,7 @@ const ACW = () => {
           </div>
 
           {/* Section 5: Q/A */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <SectionTitle number="5" title="핵심 발화 추출" />
             <div className="space-y-3">
               <div>
@@ -679,7 +679,7 @@ const ACW = () => {
           </div>
 
           {/* Section 6: 처리 결과 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <SectionTitle number="6" title="처리 결과" />
             <div className="grid grid-cols-3 gap-4">
               {/* 해결 여부 */}
@@ -692,7 +692,7 @@ const ACW = () => {
                         type="radio"
                         checked={form.resolved === val}
                         onChange={() => handleChange('resolved', val)}
-                        className="accent-[#1E40AF]"
+                        className="accent-[#0054A6]"
                       />
                       <span className="text-[14px] text-gray-700">{label}</span>
                     </label>
@@ -710,7 +710,7 @@ const ACW = () => {
                         type="radio"
                         checked={form.agentUsedAi === opt.value}
                         onChange={() => handleChange('agentUsedAi', opt.value)}
-                        className="accent-[#1E40AF]"
+                        className="accent-[#0054A6]"
                       />
                       <span className="text-[14px] text-gray-700">{opt.label}</span>
                     </label>
@@ -727,7 +727,7 @@ const ACW = () => {
           </div>
 
           {/* Section 7: 메모 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4 mb-6">
             <SectionTitle number="7" title="상담사 메모" />
             <textarea
               value={form.memo}

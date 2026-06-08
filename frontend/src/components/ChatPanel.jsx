@@ -8,7 +8,7 @@ const MessageBubble = ({ message }) => {
     <div className={`flex gap-2 mb-3 ${isAgent ? 'flex-row-reverse' : 'flex-row'}`}>
       <div className="flex-shrink-0 mt-0.5">
         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] ${
-          isAgent ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+          isAgent ? 'bg-[#EAF0FA] text-[#003F7D]' : 'bg-gray-100 text-gray-600'
         }`}>
           {isAgent ? '🎧' : '👤'}
         </div>
@@ -17,9 +17,9 @@ const MessageBubble = ({ message }) => {
         <span className="text-[12px] text-gray-400 font-medium">
           {isAgent ? '상담사' : '고객'}
         </span>
-        <div className={`px-3 py-2 rounded-2xl text-[15px] leading-relaxed ${
+        <div className={`px-3 py-2 rounded text-[15px] leading-relaxed ${
           isAgent
-            ? 'bg-[#1E40AF] text-white rounded-tr-sm'
+            ? 'bg-[#0054A6] text-white rounded-tr-sm'
             : 'bg-gray-100 text-gray-800 rounded-tl-sm'
         }`}>
           {message.content || message.text || message.message}
@@ -44,7 +44,7 @@ const ChatPanel = ({ messages = [] }) => {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

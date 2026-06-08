@@ -5,6 +5,7 @@ import asyncpg
 
 from app.core.database import get_conn
 from app.core.dependencies import get_current_agent
+from app.services.medical_normalize import normalize_disease_name
 from app.services.pipeline.session import get_session
 from app.schemas.acw import (
     AcwInitResponse, AcwGenerateResponse, AcwSaveRequest, AcwSaveResponse,
@@ -137,6 +138,9 @@ async def acw_save(
 ):
     ai_guid_json = body.ai_guidance.model_dump() if body.ai_guidance else None
     qa_json = [item.model_dump() for item in body.qa_summary]
+
+    # disease_name 정규화 (STT 오인식 + 표기 통일)
+    body.disease_name = normalize_disease_name(body.disease_name) if body.disease_name else body.disease_name
 
     # q_embedding 생성 (실패 시 None)
     # asyncpg vector 타입은 "[x,y,z,...]" 문자열 형식 필요

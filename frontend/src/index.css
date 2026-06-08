@@ -1,17 +1,158 @@
 @import "tailwindcss";
 
+/* ── KRDS (Korea Design System) 디자인 토큰 ─────────────────── */
+:root {
+  /* Primary */
+  --krds-primary:        #0054A6;
+  --krds-primary-hover:  #003F7D;
+  --krds-primary-light:  #EAF0FA;
+  --krds-primary-border: #B3CCE8;
+
+  /* Semantic */
+  --krds-success:        #1A7C3E;
+  --krds-success-light:  #E6F4EC;
+  --krds-warning:        #E87C00;
+  --krds-warning-light:  #FEF3E2;
+  --krds-error:          #C41A1A;
+  --krds-error-light:    #FDEAEA;
+
+  /* Text */
+  --krds-text-primary:   #1A1A1A;
+  --krds-text-secondary: #5C5C5C;
+  --krds-text-disabled:  #A0A0A0;
+  --krds-text-inverse:   #FFFFFF;
+
+  /* Surface */
+  --krds-bg:             #F5F5F5;
+  --krds-surface:        #FFFFFF;
+  --krds-surface-hover:  #F0F0F0;
+
+  /* Border */
+  --krds-border:         #D9D9D9;
+  --krds-border-focus:   #0054A6;
+
+  /* Radius (KRDS 표준) */
+  --krds-radius-sm:      2px;   /* 태그/뱃지 */
+  --krds-radius-md:      4px;   /* 버튼/인풋 */
+  --krds-radius-lg:      8px;   /* 카드 */
+
+  /* Height (KRDS 표준) */
+  --krds-input-h:        44px;
+  --krds-btn-h:          44px;
+  --krds-btn-sm-h:       32px;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  /* Pretendard-GOV: 범정부 공식 서체 (Pretendard 기반) */
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR',
+               -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--krds-bg);
+  color: var(--krds-text-primary);
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* ── KRDS 공통 컴포넌트 유틸리티 ─────────────────────────────── */
+
+/* 버튼 — Primary */
+.krds-btn-primary {
+  height: var(--krds-btn-h);
+  padding: 0 20px;
+  background-color: var(--krds-primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--krds-radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.krds-btn-primary:hover  { background-color: var(--krds-primary-hover); }
+.krds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 버튼 — Secondary (Outline) */
+.krds-btn-secondary {
+  height: var(--krds-btn-h);
+  padding: 0 20px;
+  background-color: #FFFFFF;
+  color: var(--krds-primary);
+  border: 1px solid var(--krds-primary);
+  border-radius: var(--krds-radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.krds-btn-secondary:hover { background-color: var(--krds-primary-light); }
+
+/* 버튼 — Small */
+.krds-btn-sm {
+  height: var(--krds-btn-sm-h);
+  padding: 0 14px;
+  font-size: 13px;
+  border-radius: var(--krds-radius-md);
+}
+
+/* 인풋 */
+.krds-input {
+  height: var(--krds-input-h);
+  padding: 0 12px;
+  border: 1px solid var(--krds-border);
+  border-radius: var(--krds-radius-md);
+  font-size: 15px;
+  color: var(--krds-text-primary);
+  background-color: #FFFFFF;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.krds-input:focus { border-color: var(--krds-border-focus); }
+.krds-input::placeholder { color: var(--krds-text-disabled); }
+
+/* 카드 */
+.krds-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--krds-border);
+  border-radius: var(--krds-radius-lg);
+  padding: 20px;
+}
+
+/* 태그/뱃지 */
+.krds-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--krds-radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+.krds-tag-primary { background-color: var(--krds-primary-light); color: var(--krds-primary); }
+.krds-tag-success { background-color: var(--krds-success-light); color: var(--krds-success); }
+.krds-tag-error   { background-color: var(--krds-error-light);   color: var(--krds-error);   }
+.krds-tag-warning { background-color: var(--krds-warning-light); color: var(--krds-warning); }
+
+/* ── KRDS 스크롤바 ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #C9C9C9; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #A0A0A0; }
+
+/* ── KRDS 포커스 링 (키보드 접근성) ──────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--krds-primary);
+  outline-offset: 2px;
+}
+
+/* ── KRDS 텍스트 선택 색상 ───────────────────────────────────── */
+::selection {
+  background-color: var(--krds-primary-light);
+  color: var(--krds-primary);
 }
