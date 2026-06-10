@@ -1,5 +1,7 @@
 # Togyether — 질병관리청 1339 콜센터 AI 지원 시스템
 
+<div align="center">
+
 > 캡스톤디자인 2026-1 | 동국대학교 데이터사이언스 소프트웨어 연계전공
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
@@ -8,6 +10,8 @@
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white)
 ![Deepgram](https://img.shields.io/badge/Deepgram-Nova--3-13EF93?logoColor=white)
+
+</div>
 
 질병관리청 1339 콜센터 상담사를 위한 AI 보조 시스템입니다.
 고객 발화를 실시간으로 분석하여 관련 감염병 정보를 자동으로 검색·제공하고,
