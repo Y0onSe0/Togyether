@@ -3,7 +3,8 @@
 
 > 작성일: 2026-05-05
 > v2.1 수정 (2026-05-06): username 컬럼 추가, oos_type 추가, category_master 재정의
-> v3.0 수정 (2026-06-10): PostgreSQL 16 로컬 → **Supabase 배포 환경**으로 변경, `notice_banners` 테이블 추가
+> v3.0 수정 (2026-06-10): PostgreSQL 16 로컬 → **Supabase 배포 환경**으로 변경, knowledge_chunks 스키마 정리
+> v3.1 수정 (2026-06-10): knowledge_chunks 전체 재적재 완료, DATA-011 재정의 (AI Hub Q&A), notice_banners 제거
 
 ---
 
@@ -28,11 +29,11 @@
 | --- | --- | --- | --- |
 | 1 | `agents` | 상담사 계정 관리 | 수동 입력 |
 | 2 | `calls` | 통화 세션 | 시스템 자동 생성 |
-| 3 | `acw_cards` | ACW 후처리 카드 + 유사사례 (3,744건) | DATA-016 (system 200 + ai_hub 3,544) |
-| 4 | `knowledge_chunks` | 통합 RAG 지식 청크 (3,058청크) | DATA-001~014 (DATA-003 미적재) |
-| 5 | `transfer_agencies` | 이관기관 정보 (123건) | DATA-015 |
-| 6 | `category_master` | ACW 분류 시드 (17행) | 수동 정의 |
-| 7 | `notice_banners` | 공지사항 배너 | 관리자 입력 |
+| 3 | `acw_cards` | ACW 후처리 카드 + 유사사례 | DATA-016 (system + ai_hub) |
+| 4 | `knowledge_chunks` | 통합 RAG 지식 청크 (4,911건) | DATA-001~011 |
+| 5 | `transfer_agencies` | 이관기관 정보 (33건) | rebuild_transfer_agencies.py |
+| 6 | `category_master` | ACW 분류 시드 | 수동 정의 |
+| 7 | `kdca_notices` | 질병관리청 보도자료 크롤링 | kdca_crawler.py 자동 수집 |
 
 ---
 
@@ -194,22 +195,19 @@ ACW 완료  → status = 'ended'
 
 | data_id | 문서명 | source_category | knowledge_type | 청크 수 |
 | --- | --- | --- | --- | --- |
-| DATA-001 | 2025년도 코로나19 관리지침 | `disease` | `disease_guideline` | 138 |
+| DATA-001 | 2025년도 코로나19 관리지침 | `disease` | `disease_guideline` | 56 |
 | DATA-002 | 법정감염병 진단검사 통합지침(제4-2판) | `disease` | `disease_guideline` | 296 |
-| DATA-003 | *(미적재)* 두창 관리지침 | — | — | — |
+| DATA-003 | 두창·에볼라 등 제1급 감염병 관리지침 | `disease` | `disease_guideline` | 169 |
 | DATA-004 | 2026년 HIV/AIDS 관리지침 | `disease` | `disease_guideline` | 187 |
 | DATA-005 | MERS·SARS 대응지침 | `disease` | `disease_guideline` | 280 |
-| DATA-006 | 2026 국가결핵관리지침 | `disease` | `disease_guideline` | 419 |
-| DATA-007 | 제1급감염병 바이러스성출혈열 대응지침 | `disease` | `disease_guideline` | 245 |
-| DATA-008 | 질병관리청 FAQ | `disease`+`system` | `faq` | 164 |
+| DATA-006 | 2026 국가결핵관리지침 | `disease` | `disease_guideline` | 414 |
+| DATA-007 | 제1급감염병 바이러스성출혈열 대응지침 | `disease` | `disease_guideline` | 494 |
+| DATA-008 | 질병관리청 FAQ | `disease` | `faq` | 164 |
 | DATA-009 | 질병관리청 법정감염병 정보 (크롤링) | `disease` | `disease_info` | 1,082 |
-| DATA-010 | 질병관리청 감염병포털 FAQ | `disease`+`system` | `faq` | 90 |
-| DATA-011 | 2026년 HIV/AIDS 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 1 |
-| DATA-012 | 2025년도 코로나19 관리지침 (시스템 매뉴얼) | `system` | `system_manual` | 12 |
-| DATA-013 | 결핵관리 사용자 이용 설명서 [보건소] | `system` | `system_manual` | 96 |
-| DATA-014 | 결핵관리 사용자 이용 설명서 [의료기관] | `system` | `system_manual` | 48 |
+| DATA-010 | 질병관리청 감염병포털 FAQ | `disease` | `faq` | 90 |
+| DATA-011 | AI Hub 헬스케어 Q&A | `disease` | `faq` | 1,679 |
 
-> **총 knowledge_chunks**: 3,058청크 (DATA-003 제외)
+> **총 knowledge_chunks**: 4,911청크 (DATA-001~011)
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 | --- | --- | --- | --- | --- |
@@ -232,10 +230,9 @@ ACW 완료  → status = 'ended'
 
 | knowledge_type | source_category | 데이터 |
 | --- | --- | --- |
-| `disease_guideline` | disease | DATA-001, 002, 004~007 |
+| `disease_guideline` | disease | DATA-001~007 |
 | `disease_info` | disease | DATA-009 |
-| `faq` | disease/system | DATA-008, 010 |
-| `system_manual` | system | DATA-011~014 |
+| `faq` | disease | DATA-008, 010, 011 |
 
 ---
 
@@ -243,7 +240,7 @@ ACW 완료  → status = 'ended'
 
 **설명**: 이관 가능한 외부 기관 정보. STEP 2-C에서 키워드 매핑(TRANSFER_KEYWORD_MAP) 우선 → 임베딩 유사도 검색 폴백으로 적합 기관 추천.
 
-> **데이터 건수**: `rebuild_transfer_agencies.py` 실행 기준 30건 (최신화 후)
+> **데이터 건수**: `rebuild_transfer_agencies.py` 실행 기준 33건
 > 유사도 임계값: `TRANSFER_THRESHOLD = 0.60`
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |

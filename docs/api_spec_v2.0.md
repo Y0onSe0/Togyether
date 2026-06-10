@@ -102,10 +102,7 @@
 | | GET | `/api/disease-stats/trend-with-calls` | SCR-005 |
 | | GET | `/api/disease-stats/weekly-alert` | SCR-005 조기경보 |
 | **카테고리** | GET | `/api/categories` | SCR-004 드롭다운 |
-| **공지사항** | GET | `/api/notice/banner` | SCR-005/006 |
-| | POST | `/api/notice/banner` | SCR-006 관리 |
-| | DELETE | `/api/notice/banner/{banner_id}` | SCR-006 관리 |
-| | GET | `/api/notice/stats` | SCR-006 |
+| **공지사항** | GET | `/api/notice/stats` | SCR-006 |
 | | GET | `/api/notice/press` | SCR-006 |
 | | GET | `/api/notice/similar` | SCR-006 |
 | | POST | `/api/notice/crawl` | SCR-006 |
@@ -165,32 +162,13 @@
 
 > SCR-001~005 상세 흐름은 v1.2와 동일합니다. 변경된 부분만 아래에 기재합니다.
 
-#### SCR-005 변경사항 — 알림 배너 DB 연동
-
-```
-[SCR-005 대시보드 화면]
-│
-├── 화면 마운트 시
-│   └──► GET /api/notice/banner          ← 기존 하드코딩 → DB 연동으로 변경
-│            DB: SELECT * FROM notice_banners ORDER BY created_at DESC LIMIT 1
-│            → { banner_id, message, created_at }
-│            → 상단 알림 배너 표시
-│
-└── [X] 클릭 시 닫기 (프론트 상태만, DB 삭제 아님)
-```
-
----
-
 ### SCR-006 | 공지사항
 
 ```
 [SCR-006 공지사항 화면]
-│  레이아웃: GNB + LNB + 알림 배너 + 콜센터 당일 통계 + 보도자료 + 유사 상담 사례
+│  레이아웃: GNB + LNB + 콜센터 당일 통계 + 보도자료 + 유사 상담 사례
 │
 ├── 화면 마운트 시
-│   ├──► GET /api/notice/banner
-│   │        → 알림 배너 표시
-│   │
 │   ├──► GET /api/notice/stats
 │   │        DB: calls + acw_cards 당일 집계
 │   │        → { total_calls, active_calls, avg_duration_sec, resolution_rate }
@@ -206,13 +184,9 @@
 ├── 보도자료 페이지네이션
 │   └──► GET /api/notice/press?page={n}
 │
-├── [크롤링 실행] 버튼 (관리자용)
-│   └──► POST /api/notice/crawl
-│            → 질병관리청 웹사이트 수동 크롤링 실행
-│
-└── 알림 배너 관리
-    ├──► POST /api/notice/banner   Body: { message }  → 배너 등록
-    └──► DELETE /api/notice/banner/{banner_id}         → 배너 삭제
+└── [크롤링 실행] 버튼 (관리자용)
+    └──► POST /api/notice/crawl
+             → 질병관리청 웹사이트 수동 크롤링 실행
 ```
 
 ---
@@ -584,37 +558,6 @@
 ---
 
 ### 5-8. 공지사항 (Notice)
-
-#### `GET /api/notice/banner`
-> 최신 공지 배너 1건 조회
-
-**Response 200**
-```json
-{ "banner_id": 1, "message": "2026.06.01 코로나19 격리 지침 변경", "level": "info", "created_at": "2026-06-01T09:00:00" }
-```
-> `level`: `"info"` | `"warning"` | `"danger"`
-
----
-
-#### `POST /api/notice/banner`
-**Request Body**
-```json
-{ "message": "2026.06.10 인플루엔자 유행 주의보 발령", "level": "warning" }
-```
-**Response 201**
-```json
-{ "banner_id": 2, "message": "...", "level": "warning", "created_at": "2026-06-10T10:00:00" }
-```
-
----
-
-#### `DELETE /api/notice/banner/{banner_id}`
-**Response 200**
-```json
-{ "message": "삭제되었습니다." }
-```
-
----
 
 #### `GET /api/notice/stats`
 > 콜센터 당일 통계

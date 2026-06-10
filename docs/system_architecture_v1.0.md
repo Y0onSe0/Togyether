@@ -274,22 +274,22 @@ ACW 화면 마운트 (SCR-004)
 ```
 [전처리 스크립트]              [Supabase DB]
 
-DATA-001~014 ──────────────► knowledge_chunks (3,058청크)
+DATA-001~011 ──────────────► knowledge_chunks (4,911청크)
   docling(코랩) → MD 파싱 → JSON 변환
   clean_content 정제 + chunk_text 구성
   text-embedding-3-small 임베딩 → embedding 컬럼
   ivfflat 인덱스
 
-DATA-015 ───────────────────► transfer_agencies (30건, rebuild 기준)
+DATA-015 ───────────────────► transfer_agencies (33건, rebuild 기준)
   연락처 파싱
   description 임베딩
 
-DATA-016 ───────────────────► acw_cards (3,744건)
+DATA-016 ───────────────────► acw_cards
   AI Hub 상담내역
   qa_summary Q 임베딩 → q_embedding
   source='ai_hub'
 
-수동 정의 ──────────────────► category_master (17행)
+수동 정의 ──────────────────► category_master
 
 수동 입력 ──────────────────► agents (10명, agent01~10)
 ```

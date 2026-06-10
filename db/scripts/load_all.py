@@ -544,8 +544,8 @@ def main():
                         help="테이블 초기화 후 전체 재적재")
     parser.add_argument("--no-embed", action="store_true",
                         help="임베딩 생성 건너뜀 (embedding=NULL)")
-    parser.add_argument("--skip",     nargs="*", choices=["kc", "ta", "acw"], default=[],
-                        help="건너뛸 대상: kc=knowledge_chunks, ta=transfer_agencies, acw=acw_cards")
+    parser.add_argument("--skip",     action="append", choices=["kc", "ta", "acw"], default=[],
+                        help="건너뛸 대상 (반복 가능): --skip kc --skip ta")
     parser.add_argument("--only",     nargs="+", metavar="DATA_ID",
                         help="특정 data_id만 적재 (예: --only DATA-001 DATA-002)")
     parser.add_argument("--limit",    type=int, default=None,
