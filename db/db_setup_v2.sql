@@ -207,6 +207,22 @@ CREATE TABLE IF NOT EXISTS category_master (
 
 
 -- ============================================================
+--  7. kdca_notices  (질병관리청 보도자료 크롤링)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS kdca_notices (
+    id           SERIAL          PRIMARY KEY,
+    title        TEXT            NOT NULL,
+    link         TEXT            NOT NULL UNIQUE,
+    published_at TIMESTAMPTZ,
+    author       TEXT,
+    description  TEXT,
+    created_at   TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kdca_notices_published_at ON kdca_notices (published_at DESC);
+
+
+-- ============================================================
 --  category_master 시드 데이터
 -- ============================================================
 INSERT INTO category_master (category, major, mid) VALUES
