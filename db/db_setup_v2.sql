@@ -137,11 +137,14 @@ CREATE INDEX IF NOT EXISTS idx_acw_category     ON acw_cards (category);
 --
 --  knowledge_type: disease_guideline | disease_info | faq | system_manual
 --  source_category: disease | system
+--
+--  v3.0 변경: 미사용 컬럼 제거
+--    삭제: source_id, content, embed_text, keywords, source, section_category
+--    추가: clean_content (정제된 텍스트, retrieval.py 메인 RAG 사용)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
     id              SERIAL          PRIMARY KEY,
-    source_id       VARCHAR(200),               -- 원본 파일의 id 값
-    data_id         VARCHAR(20)     NOT NULL,   -- 'DATA-001' ~ 'DATA-015'
+    data_id         VARCHAR(20)     NOT NULL,   -- 'DATA-001' ~ 'DATA-014'
     source_category VARCHAR(10)     NOT NULL,   -- 'disease' | 'system'
     knowledge_type  VARCHAR(30)     NOT NULL,
     -- 'disease_guideline' | 'disease_info' | 'faq' | 'system_manual'
@@ -151,13 +154,9 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
     chapter         VARCHAR(200),
     section_title   VARCHAR(300),
 
-    content         TEXT,           -- 원본 텍스트 (가공 전)
-    chunk_text      TEXT    NOT NULL,   -- GPT에 전달할 전체 텍스트
-    embed_text      TEXT    NOT NULL,   -- 실제 임베딩 대상 텍스트
+    chunk_text      TEXT,           -- step2_search.py 폴백 검색용
+    clean_content   TEXT,           -- retrieval.py Hybrid RAG 메인 사용
     chunk_index     INT     DEFAULT 0,
-
-    keywords        JSONB,
-    source          VARCHAR(500),   -- 원본 파일명 또는 URL
 
     embedding       VECTOR(1536)
 );
