@@ -2,6 +2,13 @@
 
 > 캡스톤디자인 2026-1 | 동국대학교 데이터사이언스 소프트웨어 연계전공
 
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white)
+![Deepgram](https://img.shields.io/badge/Deepgram-Nova--3-13EF93?logoColor=white)
+
 질병관리청 1339 콜센터 상담사를 위한 AI 보조 시스템입니다.
 고객 발화를 실시간으로 분석하여 관련 감염병 정보를 자동으로 검색·제공하고,
 상담 후처리(ACW) 카드를 자동 생성합니다.
@@ -141,4 +148,9 @@ Project/
 
 ## 팀원
 
-장윤서 · 백주원 · 황선민
+|<img src="https://avatars.githubusercontent.com/Y0onSe0" width="120" height="120"/>|<img src="https://avatars.githubusercontent.com/stoneworms" width="120" height="120"/>|
+|:-:|:-:|
+|장윤서 [@Y0onSe0](https://github.com/Y0onSe0)|백주원 [@stoneworms](https://github.com/stoneworms)|
+|팀장 · Full Stack|AI / RAG|
+
+황선민 · STT 모듈 · 문서
