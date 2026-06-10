@@ -31,7 +31,7 @@
 | 인증 방식 | JWT Bearer Token |
 | 응답 형식 | `application/json` |
 | DB | Supabase (PostgreSQL + pgvector) |
-| LLM | gpt-4o-mini (STEP 1 · STEP 3 · ACW LLM) |
+| LLM | gpt-4.1-mini (STEP 1 판정) · gpt-4o-mini (STEP 3 안내 생성 · ACW LLM) |
 | 임베딩 | text-embedding-3-small (1536d) |
 | STT | Deepgram Nova-3 (single / dual 채널) |
 
@@ -83,7 +83,8 @@
 | **통화** | POST | `/api/calls` | SCR-003 (상담 시작) |
 | | PATCH | `/api/calls/{call_id}/end` | SCR-003 (통화 종료) |
 | | GET | `/api/calls/{call_id}` | SCR-003 |
-| **WebSocket STT** | WS | `/ws/stt/{call_id}` | SCR-003 상담 중 |
+| **WebSocket AI 파이프라인** | WS | `/ws/call/{call_id}` | SCR-003 상담 중 (AI 결과 수신) |
+| **WebSocket STT** | WS | `/ws/stt/{call_id}` | SCR-003 상담 중 (오디오 전송·STT) |
 | **ACW** | GET | `/api/acw/{call_id}/init` | SCR-004 |
 | | POST | `/api/acw/{call_id}/generate` | SCR-004 |
 | | PUT | `/api/acw/{call_id}` | SCR-004 |
@@ -106,6 +107,7 @@
 | | DELETE | `/api/notice/banner/{banner_id}` | SCR-006 관리 |
 | | GET | `/api/notice/stats` | SCR-006 |
 | | GET | `/api/notice/press` | SCR-006 |
+| | GET | `/api/notice/similar` | SCR-006 |
 | | POST | `/api/notice/crawl` | SCR-006 |
 | **검역** | GET | `/api/quarantine/country` | SCR-003 이관 카드 |
 | | GET | `/api/quarantine/disease` | SCR-003 이관 카드 |
@@ -132,7 +134,8 @@
 │                        FastAPI  (app/main.py)                                │
 │                                                                              │
 │  /auth  /agents  /calls  /acw  /dashboard  /disease-stats  /categories      │
-│  /notice  /quarantine  /vaccine  /history  /ws/stt                          │
+│  /notice  /quarantine  /vaccine  /history                                    │
+│  /ws/call (AI 파이프라인)  /ws/stt (Deepgram STT)                           │
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                       Service / Pipeline Layer                        │   │
@@ -241,14 +244,15 @@
 
 ## 4. 실시간 파이프라인 흐름 (WebSocket)
 
-> STT가 Whisper → Deepgram Nova-3으로 변경되었습니다.
-> WebSocket 엔드포인트: `/ws/stt/{call_id}?token={}&mode={single|dual}`
+> WebSocket 엔드포인트 2종:
+> - `/ws/stt/{call_id}?token={}&mode={single|dual}` — 오디오 전송 + Deepgram STT (stt.py)
+> - `/ws/call/{call_id}?token={}` — AI 파이프라인 결과 수신 (ws.py)
 
 ```
 클라이언트 (SCR-003)                  서버 Pipeline                    외부 / DB
       │                                      │                            │
       │── WS connect ──────────────────────► │                            │
-      │   /ws/stt/{call_id}?token=...        │ 인증 검증                  │
+      │   /ws/stt/{call_id}?token=...        │ 인증 검증 (stt.py)         │
       │   &mode=single|dual                  │ 세션 초기화                │
       │                                      │                            │
       │── binary(PCM 16kHz) ───────────────► │                            │
@@ -279,12 +283,13 @@
       │                                      │◄── query_vector (1536d) ───│
       │                                      │                            │
       │                                      │ ┌─── 병렬 실행 ───────────┐│
-      │                                      │ │ 2-A: knowledge_chunks   ││►pgvector
-      │                                      │ │ 2-B: acw_cards          ││►pgvector
-      │                                      │ │ 2-C: transfer_agencies  ││►pgvector
+      │                                      │ │ 2-A: Hybrid RAG         ││ 인메모리
+      │                                      │ │  Dense+BM25+RRF         ││ (NumPy/BM25)
+      │                                      │ │  +Cross-Encoder         ││
+      │                                      │ │ 2-B: 유사사례 ─비활성화 ││
+      │                                      │ │ 2-C: 이관기관 검색      ││►pgvector
       │                                      │ └─────────────────────────┘│
       │                                      │                            │
-      │◄── similar_cases ───────────────────│ 2-B 완료 즉시 push         │
       │◄── transfer_suggestion ─────────────│ 2-C 완료 즉시 push         │
       │                                      │                            │
       │                      is_oos=true? ───┤                            │
@@ -502,6 +507,7 @@
 ### 5-6. 감염병 통계 (Disease Stats)
 
 > 공공데이터포털 질병관리청 통계 API 연동. 1시간 TTL 캐시 적용.
+> API 키 미설정 또는 호출 실패 시 Mock 데이터 반환 (graceful fallback)
 
 #### `GET /api/disease-stats/by-disease`
 > 이번 달 감염병별 발생현황 TOP 10
@@ -584,19 +590,20 @@
 
 **Response 200**
 ```json
-{ "banner_id": 1, "message": "2026.06.01 코로나19 격리 지침 변경", "created_at": "2026-06-01T09:00:00" }
+{ "banner_id": 1, "message": "2026.06.01 코로나19 격리 지침 변경", "level": "info", "created_at": "2026-06-01T09:00:00" }
 ```
+> `level`: `"info"` | `"warning"` | `"danger"`
 
 ---
 
 #### `POST /api/notice/banner`
 **Request Body**
 ```json
-{ "message": "2026.06.10 인플루엔자 유행 주의보 발령" }
+{ "message": "2026.06.10 인플루엔자 유행 주의보 발령", "level": "warning" }
 ```
 **Response 201**
 ```json
-{ "banner_id": 2, "message": "...", "created_at": "2026-06-10T10:00:00" }
+{ "banner_id": 2, "message": "...", "level": "warning", "created_at": "2026-06-10T10:00:00" }
 ```
 
 ---
@@ -636,6 +643,24 @@
   "page": 1,
   "items": [
     { "title": "코로나19 주간 현황", "url": "https://...", "date": "2026-06-09" }
+  ]
+}
+```
+
+---
+
+#### `GET /api/notice/similar`
+> 완료된 유사 상담 사례 목록
+
+**Query Params**: `page` (기본값: 1)
+
+**Response 200**
+```json
+{
+  "total": 50,
+  "page": 1,
+  "items": [
+    { "acw_id": 15, "title": "코로나19 격리 기간 문의", "disease_name": "코로나19", "created_at": "2026-06-08T10:00:00" }
   ]
 }
 ```
@@ -800,14 +825,18 @@
 
 ### 연결
 
+**STT WebSocket (오디오 전송)**
 ```
 WS /ws/stt/{call_id}?token={access_token}&mode={single|dual}
 ```
-
-- `call_id`: `POST /api/calls` 응답의 `call_id`
-- `token`: JWT access_token (쿼리 파라미터)
 - `mode`: `single` (diarize 기반 화자 분리) | `dual` (듀얼 채널)
 - Binary frame: PCM 16kHz mono 16-bit 오디오 청크
+
+**AI 파이프라인 WebSocket (결과 수신)**
+```
+WS /ws/call/{call_id}?token={access_token}
+```
+- AI 분석 결과(`ai_update`, `transfer_suggestion`) 수신 전용
 
 ---
 
@@ -817,7 +846,7 @@ WS /ws/stt/{call_id}?token={access_token}&mode={single|dual}
 |------|--------|---------|
 | `conversation_update` | Deepgram STT + 정규화 완료 | 우측 대화 내역 |
 | `ai_update` | STEP 1 시작 / STEP 3 완료 | 좌측 AI 안내 카드 |
-| `similar_cases` | 2-B 완료 | 좌측 유사사례 카드 |
+| `similar_cases` | 2-B 완료 (현재 비활성화) | 좌측 유사사례 카드 |
 | `transfer_suggestion` | 2-C 완료 | 좌측 이관 참고 카드 |
 
 ---
@@ -883,59 +912,52 @@ WS /ws/stt/{call_id}?token={access_token}&mode={single|dual}
 ## 7. FastAPI 파일 구조
 
 ```
-backend/app/
-│
-├── main.py                     # FastAPI 앱, 라우터 등록, CORS
-│
-├── core/
-│   ├── config.py               # 환경변수 (.env) 로드
-│   ├── database.py             # asyncpg 연결 풀
-│   ├── security.py             # JWT 발급/검증, bcrypt
-│   └── dependencies.py         # get_current_agent() 인증 의존성
-│
-├── routers/
-│   ├── auth.py                 # POST /api/auth/login, /logout
-│   ├── agents.py               # POST /api/agents, GET /check-name, /me
-│   ├── calls.py                # POST /api/calls, PATCH /{id}/end, GET /{id}
-│   ├── acw.py                  # GET/POST/PUT /api/acw/{id}
-│   ├── dashboard.py            # GET /api/dashboard/my/**, /all/**
-│   ├── disease_stats.py        # GET /api/disease-stats/** (공공데이터 통계)
-│   ├── categories.py           # GET /api/categories
-│   ├── notice.py               # GET/POST/DELETE /api/notice/**
-│   ├── quarantine.py           # GET /api/quarantine/** (검역관리지역)
-│   ├── vaccine.py              # GET /api/vaccine/search
-│   ├── history.py              # GET /api/history/**
-│   └── stt.py                  # WS /ws/stt/{call_id} (Deepgram Nova-3)
-│
-├── services/
-│   ├── auth_service.py
-│   ├── agent_service.py
-│   ├── call_service.py
-│   ├── acw_service.py
-│   ├── dashboard_service.py
+backend/
+├── app/
+│   ├── main.py                     # FastAPI 앱, 라우터 등록, CORS, 앱 생명주기
 │   │
-│   └── pipeline/
-│       ├── session.py          # 통화 세션 (conversation_history, ai_guidance 캐시)
-│       ├── voice.py            # VAD + Deepgram Nova-3 STT (single/dual)
-│       ├── step1_llm.py        # STEP 1: ready/is_oos/disease_name/query
-│       ├── step2_search.py     # STEP 2: 2-A/2-B/2-C 병렬 벡터 검색
-│       ├── step3_llm.py        # STEP 3: AI 안내 생성
-│       └── guidance_cache.py   # ai_guidance 캐시 구성/조회
+│   ├── core/
+│   │   ├── config.py               # 환경변수 (.env) 로드 (Settings 클래스)
+│   │   ├── database.py             # asyncpg 연결 풀
+│   │   ├── security.py             # JWT 발급/검증, bcrypt
+│   │   └── dependencies.py         # get_current_agent() 인증 의존성
+│   │
+│   ├── routers/
+│   │   ├── auth.py                 # POST /api/auth/login, /logout
+│   │   ├── agents.py               # POST /api/agents, GET /check-name, /me
+│   │   ├── calls.py                # POST /api/calls, PATCH /{id}/end, GET /{id}
+│   │   ├── acw.py                  # GET/POST/PUT /api/acw/{id}
+│   │   ├── dashboard.py            # GET /api/dashboard/my/**, /all/**
+│   │   ├── disease_stats.py        # GET /api/disease-stats/** (mock fallback 포함)
+│   │   ├── categories.py           # GET /api/categories
+│   │   ├── notice.py               # GET/POST/DELETE /api/notice/**
+│   │   ├── quarantine.py           # GET /api/quarantine/** (공공데이터 연동)
+│   │   ├── vaccine.py              # GET /api/vaccine/search (공공데이터 연동)
+│   │   ├── history.py              # GET /api/history/**
+│   │   ├── ws.py                   # WS /ws/call/{call_id} (AI 파이프라인 결과 push)
+│   │   └── stt.py                  # WS /ws/stt/{call_id} (Deepgram Nova-3 STT)
+│   │
+│   ├── services/
+│   │   ├── acw_service.py          # ACW 카드 생성 서비스
+│   │   ├── kdca_crawler.py         # 질병관리청 RSS 크롤러 (6시간 주기 백그라운드)
+│   │   ├── medical_normalize.py    # 의료 도메인 텍스트 정규화
+│   │   │
+│   │   └── pipeline/
+│   │       ├── session.py          # CallSession (인메모리), 세션 생성/조회/종료
+│   │       ├── llm_session.py      # LLMSession: STEP1 판정 + 중복 필터링
+│   │       ├── step1_llm.py        # gpt-4.1-mini: ready/is_oos/disease_name/query
+│   │       ├── retrieval.py        # Hybrid RAG: Dense+BM25+RRF+Cross-Encoder
+│   │       ├── step2_search.py     # 2-C 이관기관 검색 (키워드맵+임베딩), 2-B stub
+│   │       └── card_generator.py   # STEP 3: AI 안내 카드 생성 (gpt-4o-mini)
+│   │
+│   └── schemas/
+│       ├── auth.py
+│       ├── agents.py
+│       ├── calls.py
+│       ├── acw.py
+│       └── dashboard.py
 │
-├── schemas/
-│   ├── auth.py
-│   ├── agents.py
-│   ├── calls.py
-│   ├── acw.py
-│   ├── dashboard.py
-│   ├── notice.py
-│   ├── history.py
-│   └── external.py             # quarantine, vaccine 응답 스키마
-│
-└── models/
-    ├── agent.py
-    ├── call.py
-    └── acw_card.py
+└── rebuild_transfer_agencies.py    # 이관기관 DB 재적재 유지보수 스크립트
 ```
 
 ---
@@ -991,8 +1013,11 @@ JWT_EXPIRE_MINUTES=480
 # Deepgram (STT)
 DEEPGRAM_API_KEY=...
 
+# HuggingFace (Cross-Encoder 모델 다운로드)
+HUGGINGFACE_TOKEN=...
+
 # 공공데이터포털 (검역·예방접종·감염병 통계)
-PUBLIC_DATA_API_KEY=...
+DATA_GO_KR_API_KEY=...
 ```
 
 ---
