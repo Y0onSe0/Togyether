@@ -33,7 +33,7 @@ from config import CHUNK_SIZE
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # ── 경로 ──────────────────────────────────────────────────────────────────
-MD_PATH     = Path(r"C:\Users\jys72\Downloads\vhf_docling.md")
+MD_PATH     = Path(__file__).parent.parent / "raw" / "DATA_007_vhf.md"
 OUTPUT_DIR  = Path(__file__).parent.parent / "parsed"
 OUTPUT_FILE = OUTPUT_DIR / "DATA_007_chunks_vhf.json"
 

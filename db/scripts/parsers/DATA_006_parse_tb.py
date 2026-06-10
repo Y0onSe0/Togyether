@@ -63,7 +63,7 @@ SOURCE_CATEGORY = "disease"
 KNOWLEDGE_TYPE  = "disease_guideline"
 
 # Docling MD 경로
-DOCLING_MD_PATH: Path | None = Path(r"C:\Users\jys72\Downloads\tb_docling.md")
+DOCLING_MD_PATH: Path | None = Path(__file__).parent.parent / "raw" / "DATA_006_tb.md"
 
 # ── 로마 숫자 문자셋 ─────────────────────────────────────────────────────────
 # U+2160(Ⅰ) ~ U+216B(Ⅻ) : 단일 코드포인트 로마 숫자

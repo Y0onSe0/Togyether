@@ -51,11 +51,15 @@ backend/eval_logs/
 
 # DB 디버그/임시 스크립트
 db/scripts/debug_*.py
-db/scripts/04_*.py
-db/scripts/05_*.py
-db/scripts/06_*.py
-db/scripts/07_*.py
+
+# 파싱 완료 JSON (대용량, Supabase에 적재 완료)
 db/scripts/parsed/
 
-# 실험적/미완성 파서
-db/scripts/parsers/DATA_001_parse_covid_mineru.py
+# 파싱 원본 파일 (MinerU/docling MD, 대용량 → 로컬 보관)
+db/scripts/raw/
+
+# 자동생성
+db/scripts/__pycache__/
+db/scripts/parsers/__pycache__/
+db/scripts/modules/__pycache__/
+db/scripts/loaders/__pycache__/

@@ -51,8 +51,8 @@ KNOWLEDGE_TYPE   = "disease_guideline"
 
 # 원본 JSON 기본 탐색 경로 (우선순위 순)
 _DEFAULT_SRC_CANDIDATES = [
+    Path(__file__).parent.parent / "raw" / "DATA_002_diagnostic_원본.json",
     Path(__file__).parent.parent / "parsed" / "DATA_002_chunks_diagnostic_원본.json",
-    Path.home() / "Downloads" / "DATA_002_chunks_diagnostic_원본.json",
 ]
 
 
