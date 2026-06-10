@@ -38,8 +38,7 @@ if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
 os.environ.setdefault("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
-os.environ.setdefault("DATABASE_URL",
-    "postgresql+asyncpg://postgres.yjmzvzjlwpvijijlgcnp:Togyether!!@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres")
+os.environ.setdefault("DATABASE_URL", os.getenv("DATABASE_URL", ""))
 os.environ.setdefault("JWT_SECRET_KEY", "eval-secret")
 os.environ.setdefault("JWT_ALGORITHM", "HS256")
 os.environ.setdefault("JWT_EXPIRE_MINUTES", "480")
@@ -51,7 +50,7 @@ from rank_bm25 import BM25Okapi
 import app.services.pipeline.retrieval as _rtl
 from app.services.pipeline.card_generator import generate_card
 
-DB_URL = "postgresql://postgres.yjmzvzjlwpvijijlgcnp:Togyether!!@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres"
+DB_URL = os.environ.get("DATABASE_URL", "").replace("+asyncpg", "")
 BATCH  = 5
 CLIENT = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
