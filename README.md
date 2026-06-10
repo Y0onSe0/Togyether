@@ -23,17 +23,23 @@
 
 ## 화면 소개
 
-| 로그인 | 공지사항 |
-|--------|----------|
-| ![로그인](docs/images/SCR-001_로그인.png) | ![공지사항](docs/images/SCR-006_공지사항.png) |
+**로그인**
+![로그인](docs/images/SCR-001_로그인.png)
 
-| 상담 중 | ACW 후처리 |
-|---------|-----------|
-| ![상담중](docs/images/SCR-003_상담중_감염병정보.png) | ![ACW](docs/images/SCR-004_ACW카드작성.png) |
+**공지사항**
+![공지사항](docs/images/SCR-006_공지사항.png)
 
-| 상담 내역 | 대시보드 |
-|----------|---------|
-| ![상담내역](docs/images/SCR-007_상담내역.png) | ![대시보드](docs/images/SCR-005_대시보드_내통계.png) |
+**상담 중**
+![상담중](docs/images/SCR-003_상담중_감염병정보.png)
+
+**ACW 후처리**
+![ACW](docs/images/SCR-004_ACW카드작성.png)
+
+**상담 내역**
+![상담내역](docs/images/SCR-007_상담내역.png)
+
+**대시보드**
+![대시보드](docs/images/SCR-005_대시보드_내통계.png)
 
 > 더 많은 화면은 [docs/images](docs/images) 참고
 
